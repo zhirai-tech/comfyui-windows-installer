@@ -1,198 +1,200 @@
-# ComfyUI 安装助手
+# ComfyUI Installer
 
-> 全自动安装 · 智能硬件识别 · 在线更新 · 服务托管
+> One-click install · Smart hardware detection · Online update · Service hosting
 
-**ComfyUI 安装助手**是一款面向普通用户的 ComfyUI 桌面客户端。它把「下载 Python、配置虚拟环境、按显卡选 PyTorch、安装依赖、编写启动脚本」这套复杂流程，压缩成**点几下鼠标**就能完成的一键安装。全程中文界面 + 实时日志，小白也能看懂每一步在干什么。
+[中文](README.zh.md)
 
-![ComfyUI 安装助手 · 控制台总览](screenshots/console.png)
+**ComfyUI Installer** is a desktop client of ComfyUI for everyday users. It compresses the complex workflow of "installing Python, setting up a virtual environment, choosing the right PyTorch for your GPU, installing dependencies, and writing launch scripts" into a one-click installation that only takes a few mouse clicks. A fully localized UI plus real-time logs means even beginners can understand every step.
 
----
-
-## 目录
-
-- [它解决了什么问题](#它解决了什么问题)
-- [核心功能](#核心功能)
-- [两种部署方式](#两种部署方式)
-- [系统要求](#系统要求)
-- [显卡能力档位](#显卡能力档位)
-- [快速上手](#快速上手)
-- [工作流市场](#工作流市场)
-- [模型与节点管理](#模型与节点管理)
-- [常见问题（FAQ）](#常见问题faq)
-- [下载安装](#下载安装)
-- [版本历史](#版本历史)
-- [后续规划](#后续规划)
-- [联系作者](#联系作者)
+![ComfyUI Installer · Console overview](screenshots/console.png)
 
 ---
 
-## 它解决了什么问题
+## Table of Contents
 
-ComfyUI 本身非常强大，但安装门槛劝退了大量新手：
-
-- 要先装 **Python**（版本还不能错）；
-- 要创建**虚拟环境**；
-- 要按显卡型号挑选 **PyTorch / CUDA** 版本；
-- 要安装几十上百个**依赖包**；
-- 要自己写**启动脚本**、配端口和启动参数。
-
-任何一步出错，迎接你的就是满屏英文报错。
-
-**ComfyUI 安装助手把这些步骤全部自动化**，你只需要：
-
-1. 打开软件；
-2. 选择「本地部署」或「容器版」；
-3. 点「开始安装」。
-
-剩下的交给软件，装完自动启动并打开界面。
-
-![安装流程进度页](screenshots/install.png)
+- [What problem does it solve](#what-problem-does-it-solve)
+- [Core features](#core-features)
+- [Two deployment modes](#two-deployment-modes)
+- [System requirements](#system-requirements)
+- [GPU capability tiers](#gpu-capability-tiers)
+- [Quick start](#quick-start)
+- [Workflow market](#workflow-market)
+- [Model & node management](#model--node-management)
+- [FAQ](#faq)
+- [Download & install](#download--install)
+- [Changelog](#changelog)
+- [Roadmap](#roadmap)
+- [Contact](#contact)
 
 ---
 
-## 核心功能
+## What problem does it solve
 
-### 1. 一键全自动安装
-- 自动准备 Python 环境（无系统 Python 时自动下载便携版 Python 3.10）；
-- 自动下载 ComfyUI（默认最新版，也可指定分支 / 标签）；
-- 自动创建虚拟环境、安装依赖、配置启动器；
-- 安装完成自动启动服务并打开 Web UI。
+ComfyUI is powerful, but the installation barrier scares off many newcomers:
 
-### 2. 智能硬件识别
-- 自动检测显卡型号、显存、驱动版本、CPU、内存、磁盘；
-- 内置显卡数据库，自动规范化型号（如 `NVIDIA GeForce RTX 2060` → `RTX 2060`）；
-- 显存优先读取 nvidia-smi 实测值，保证判断准确。
+- You must install **Python** (and get the version right);
+- Create a **virtual environment**;
+- Pick the correct **PyTorch / CUDA** version for your GPU;
+- Install dozens or hundreds of **dependency packages**;
+- Write your own **launch scripts** and configure ports and startup arguments.
 
-![环境检测结果页（硬件信息）](screenshots/env-detect.png)
+One mistake anywhere, and you're greeted with a wall of English error messages.
 
-### 3. 显卡能力评估
-根据当前显存自动划分档位，并给出对应能跑的内容：
+**ComfyUI Installer automates all of these steps.** You only need to:
 
-| 档位 | 显存 | 能做什么 |
-|------|------|----------|
-| 入门级 | < 6 GB | SD 1.5 / SDXL 低分辨率图片；小模型、低分辨率视频 |
-| 中端 | 6~11 GB | SD / SDXL Turbo 2K 图片；AnimateDiff / SVD 720P 短视频 |
-| 高端 | 12~19 GB | SDXL + FLUX.1 图片；CogVideoX 5B / Wan2.1 7B 短视频；全身数字人 |
-| 旗舰级 | ≥ 20 GB | 8K 超分；Wan2.1 / HunyuanVideo 1080P 长视频；多角色直播级数字人；4K 3D |
+1. Open the app;
+2. Choose "Local deployment" or "Docker";
+3. Click "Start install".
 
-### 4. 工作流市场
-- 内置「免费 / 精品 / 最新 / 热门」分类；
-- 一键安装工作流，自动补全缺失的模型；
-- 无法运行的工作流会明确提示：「此工作流需要 XX 及以上，您当前的 XX（XGB）无法运行」，小白也能看懂要升级什么。
+The app takes care of the rest and automatically starts the service and opens the UI when done.
 
-![工作流市场](screenshots/workflow-market.png)
-
-### 5. 模型 / 节点管理
-- 常用模型一键下载，自动安装到模型目录；
-- 自定义节点一键安装、删除；
-- 支持安装中文翻译节点。
-
-![模型与节点管理](screenshots/models-nodes.png)
-
-### 6. 中文提示词自动翻译
-- 提示词框可直接输入中文，本地翻译模型自动翻译成英文；
-- 全程本地运行，无需联网（首次运行下载约 300MB 翻译模型）。
-
-### 7. 环境检测与一键修复
-- 一键检测 ComfyUI、Python、PyTorch、CUDA、GPU、端口、模型与工作流目录；
-- 发现问题可一键修复，不用从头重装。
-
-![环境检测与一键修复](screenshots/repair.png)
-
-### 8. 体验优化
-- 系统托盘后台运行，支持单实例；
-- 中英文界面切换、亮 / 暗主题；
-- 客户端在线更新（半自动，检测到新版本手动点下载安装）。
+![Install progress page](screenshots/install.png)
 
 ---
 
-## 两种部署方式
+## Core features
 
-| | 本地部署（宿主机版） | 容器版部署（Docker） |
+### 1. One-click fully automatic installation
+- Automatically prepares the Python environment (downloads portable Python 3.10 when no system Python is present);
+- Automatically downloads ComfyUI (latest by default, or a specific branch / tag);
+- Automatically creates a virtual environment, installs dependencies, and configures the launcher;
+- Automatically starts the service and opens the Web UI when installation completes.
+
+### 2. Smart hardware detection
+- Automatically detects GPU model, VRAM, driver version, CPU, memory, and disk;
+- Built-in GPU database that normalizes model names (e.g. `NVIDIA GeForce RTX 2060` → `RTX 2060`);
+- VRAM is read from nvidia-smi first for accurate results.
+
+![Hardware detection result](screenshots/env-detect.png)
+
+### 3. GPU capability assessment
+Automatically classifies your GPU into tiers based on VRAM and tells you what it can run:
+
+| Tier | VRAM | What it can do |
+|------|------|----------------|
+| Entry | < 6 GB | SD 1.5 / SDXL low-resolution images; small models, low-res video |
+| Mid-range | 6~11 GB | SD / SDXL Turbo 2K images; AnimateDiff / SVD 720P short video |
+| High-end | 12~19 GB | SDXL + FLUX.1 images; CogVideoX 5B / Wan2.1 7B short video; full-body digital human |
+| Flagship | ≥ 20 GB | 8K upscaling; Wan2.1 / HunyuanVideo 1080P long video; multi-character livestream-grade digital human; 4K 3D |
+
+### 4. Workflow market
+- Built-in "Free / Featured / Latest / Trending" categories;
+- One-click workflow installation with automatic resolution of missing models;
+- Workflows that can't run on your hardware show a clear message like "This workflow requires XX or above; your current XX (XGB) cannot run it", so beginners understand exactly what to upgrade.
+
+![Workflow market](screenshots/workflow-market.png)
+
+### 5. Model / node management
+- One-click download of common models into the correct model directory;
+- One-click install / remove of custom nodes;
+- Support for installing Chinese translation nodes.
+
+![Model & node management](screenshots/models-nodes.png)
+
+### 6. Automatic Chinese prompt translation
+- Type Chinese directly into the prompt box; a local translation model converts it to English;
+- Runs fully locally with no internet required (first run downloads ~300MB translation model).
+
+### 7. Environment check & one-click repair
+- One-click check of ComfyUI, Python, PyTorch, CUDA, GPU, ports, and model / workflow directories;
+- Fix issues with one click instead of reinstalling from scratch.
+
+![Environment check & repair](screenshots/repair.png)
+
+### 8. UX improvements
+- System tray background running with single-instance support;
+- Chinese / English UI switching, light / dark themes;
+- In-app online updates (semi-automatic: download and install manually when a new version is detected).
+
+---
+
+## Two deployment modes
+
+| | Local (host) | Docker (container) |
 |---|---|---|
-| 适合人群 | 普通用户 | 技术用户 |
-| 优点 | GPU 直通最稳、显存占用最低、启动最快 | 版本随时回滚、环境可迁移、多套隔离 |
-| 缺点 | 跨机迁移需重装 | 需先装 Docker Desktop（约 2GB）；显存额外 +1~2GB |
-| 前置要求 | 无（自动装便携 Python） | 开启 WSL2 + 安装 Docker Desktop |
+| Best for | Everyday users | Technical users |
+| Pros | Most stable GPU passthrough, lowest VRAM usage, fastest startup | Easy version rollback, portable environment, multiple isolated setups |
+| Cons | Reinstall needed when migrating to another machine | Requires Docker Desktop (~2GB); +1~2GB extra VRAM |
+| Prerequisites | None (portable Python auto-installed) | Enable WSL2 + install Docker Desktop |
 
-> 首次使用建议选「本地部署」，门槛最低、最省显存。
-
----
-
-## 系统要求
-
-| 项目 | 要求 |
-|------|------|
-| 操作系统 | Windows 10 / 11 64 位 |
-| 显卡 | 推荐 NVIDIA 显卡（支持 CPU 模式，速度较慢） |
-| 磁盘 | 剩余 ≥ 30GB（推荐 ≥ 50GB，模型文件较大） |
-| 内存 | 本地版 ≥ 8GB；容器版 ≥ 16GB |
-| 网络 | 安装过程需联网下载（可配置加速源） |
+> For first-time use we recommend "Local deployment" — the lowest barrier and the least VRAM.
 
 ---
 
-## 快速上手
+## System requirements
 
-1. 到 [Releases](https://github.com/tangxiaoqi966-lab/comfyui-installer/releases) 下载最新 Windows 安装包；
-2. 双击安装，打开「ComfyUI 安装助手」；
-3. 选择「本地部署」或「容器版」，选择安装目录（推荐非系统盘）；
-4. 点击「开始安装」，等待自动完成（首次 PyTorch 下载约 5~30 分钟，属正常）；
-5. 安装完成后自动启动，点「打开 UI」在浏览器中使用。
-
-![部署方式选择页](screenshots/welcome.png)
-
----
-
-## 常见问题（FAQ）
-
-**Q：安装过程中卡住了怎么办？**
-看实时日志，它会告诉你在哪一步、什么原因。常见原因是网络慢、磁盘空间不足、PyTorch 下载中断。可重试，或到「设置」配置下载加速源。
-
-**Q：怎么知道我的显卡能不能跑某个工作流？**
-工作流市场会自动判断。能跑的显示「安装」，不能跑的会明确提示需要的最低显卡档位和显存。
-
-**Q：提示词只能用英文吗？**
-不用。提示词框直接写中文即可，本地模型自动翻译成英文。
-
-**Q：软件怎么更新？**
-客户端内置更新检测，主页发现新版本时点「下载更新」即可，手动安装，不会静默后台安装。
-
-**Q：数据存在哪里？**
-默认安装在非系统盘（如 `D:\ComfyUI`），模型、节点、工作流都在该目录下，卸载会删除整个目录（会二次确认）。
+| Item | Requirement |
+|------|-------------|
+| OS | Windows 10 / 11 64-bit |
+| GPU | NVIDIA GPU recommended (CPU mode supported, but slower) |
+| Disk | ≥ 30GB free (≥ 50GB recommended; models are large) |
+| Memory | Local ≥ 8GB; Docker ≥ 16GB |
+| Network | Internet required during install (download accelerator configurable) |
 
 ---
 
-## 下载安装
+## Quick start
 
-- 最新版本：https://github.com/tangxiaoqi966-lab/comfyui-installer/releases/latest
-- 全部版本：https://github.com/tangxiaoqi966-lab/comfyui-installer/releases
+1. Download the latest Windows installer from [Releases](https://github.com/tangxiaoqi966-lab/comfyui-installer/releases);
+2. Double-click to install and open "ComfyUI Installer";
+3. Choose "Local deployment" or "Docker", and pick an install directory (a non-system drive is recommended);
+4. Click "Start install" and wait for it to finish (the first PyTorch download takes ~5–30 minutes, which is normal);
+5. It starts automatically when done; click "Open UI" to use it in your browser.
 
-> 本仓库仅用于发布编译后的安装包，**不含源代码**。
-
----
-
-## 版本历史
-
-- **v0.1.0**（2026-08）：首个版本。支持本地 / 容器两种部署、智能硬件识别、工作流市场、模型 / 节点管理、中文提示词翻译、环境检测与一键修复、客户端在线更新。
+![Deployment selection page](screenshots/welcome.png)
 
 ---
 
-## 后续规划
+## FAQ
 
-- 接入真实统计（工作流点赞 / 下载量种子值 + 真实累加）；
-- 服务端下发个性化能力评估与推荐；
-- 自定义 pip / PyTorch 下载加速源；
-- 自定义 ComfyUI 仓库地址；
-- 按显存手动选择 PyTorch / CUDA 版本；
-- 安装完成后自动下载指定模型清单。
+**Q: What should I do if the installation gets stuck?**
+Check the real-time logs — they tell you which step failed and why. Common causes are slow network, insufficient disk space, or an interrupted PyTorch download. Retry, or configure a download accelerator in "Settings".
+
+**Q: How do I know if my GPU can run a workflow?**
+The workflow market judges this automatically. Runnable ones show "Install"; non-runnable ones clearly tell you the minimum GPU tier and VRAM required.
+
+**Q: Do prompts have to be in English?**
+No. Just type Chinese directly into the prompt box — a local model translates it to English automatically.
+
+**Q: How do I update the software?**
+The client has built-in update detection. When a new version is found on the home page, click "Download update" and install manually. It never silently installs in the background.
+
+**Q: Where is my data stored?**
+By default it installs to a non-system drive (e.g. `D:\ComfyUI`). Models, nodes, and workflows all live in that directory. Uninstalling deletes the whole directory (with a confirmation prompt).
 
 ---
 
-## 联系作者
+## Download & install
 
-- 微信 / QQ / 邮箱（见软件内「联系作者」）
-- 建议反馈与问题请在 [Issues](https://github.com/tangxiaoqi966-lab/comfyui-installer/issues) 提交
+- Latest: https://github.com/tangxiaoqi966-lab/comfyui-installer/releases/latest
+- All versions: https://github.com/tangxiaoqi966-lab/comfyui-installer/releases
+
+> This repository is only for publishing compiled installers and does **not contain source code**.
 
 ---
 
-© 2026 智睿科技（Zhirui Tech）保留所有权利。
+## Changelog
+
+- **v0.1.0** (2026-08): First release. Supports local / Docker deployment, smart hardware detection, workflow market, model / node management, Chinese prompt translation, environment check & one-click repair, and in-app online updates.
+
+---
+
+## Roadmap
+
+- Real statistics (seed values for workflow likes / downloads plus real accumulation);
+- Server-pushed personalized capability assessment and recommendations;
+- Custom pip / PyTorch download accelerators;
+- Custom ComfyUI repository URL;
+- Manual PyTorch / CUDA version selection by VRAM;
+- Auto-download a specified model list after installation.
+
+---
+
+## Contact
+
+- WeChat / QQ / email (see "Contact" inside the app)
+- For feedback and issues, please submit at [Issues](https://github.com/tangxiaoqi966-lab/comfyui-installer/issues)
+
+---
+
+© 2026 Zhirui Tech. All rights reserved.
