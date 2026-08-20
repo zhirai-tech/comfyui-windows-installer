@@ -1,0 +1,67 @@
+{
+  "$schema": "./versions.schema.json",
+  "_comment": "基础配置：版本号、下载地址、python/comfyui/pytorch/pip。manifest_url 留空时客户端使用本地内置资源（不请求远程）。",
+  "manifest_url": "",
+  "installer_latest_version": "1.0.0",
+  "installer_downloads": [
+    {
+      "url": "https://github.com/zhirai-tech/comfyui-installer/releases/latest/download/ComfyUI-Installer-1.0.0.exe",
+      "sha256": ""
+    }
+  ],
+  "python": {
+    "version": "3.10.11",
+    "version_min": "3.10.0",
+    "version_max": "3.12.999",
+    "mirror": "https://mirrors.huaweicloud.com/python",
+    "fallback_mirrors": [
+      "https://mirrors.tuna.tsinghua.edu.cn/python",
+      "https://registry.npmmirror.com/-/binary/python"
+    ]
+  },
+  "comfyui": {
+    "version": "latest",
+    "repository": "https://gitee.com/mirrors/ComfyUI.git",
+    "repository_fallback": "https://github.com/comfyanonymous/ComfyUI.git",
+    "download": "https://gitee.com/mirrors/ComfyUI/repository/archive/master.zip",
+    "download_fallback": "https://github.com/comfyanonymous/ComfyUI/archive/refs/heads/master.zip",
+    "target_branch": "master",
+    "ref_options": [
+      "v0.33.1",
+      "v0.33.0",
+      "v0.32.0",
+      "v0.31.1",
+      "v0.31.0",
+      "v0.30.2",
+      "v0.30.1",
+      "v0.30.0",
+      "v0.29.2",
+      "v0.29.1",
+      "v0.29.0"
+    ],
+    "required_disk_space_gb": 10
+  },
+  "pytorch": {
+    "version": "2.9.1",
+    "cuda": "cu130",
+    "cuda_fallback": "cu126",
+    "min_cuda_for_cu130": "12.8",
+    "min_vram_for_cuda_gb": 4,
+    "mirrors": {
+      "cu130": "https://download.pytorch.org/whl/cu130",
+      "cpu": "https://download.pytorch.org/whl/cpu"
+    },
+    "fallback_index_urls": [
+      "https://pypi.tuna.tsinghua.edu.cn/simple",
+      "https://download.pytorch.org/whl/cu130"
+    ]
+  },
+  "pip": {
+    "index_url": "https://pypi.tuna.tsinghua.edu.cn/simple",
+    "trusted_host": "pypi.tuna.tsinghua.edu.cn",
+    "extra_index": [
+      "https://mirrors.aliyun.com/pypi/simple",
+      "https://pypi.mirrors.ustc.edu.cn/simple"
+    ]
+  }
+}

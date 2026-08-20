@@ -1,0 +1,824 @@
+import { create } from "zustand";
+
+export type Lang = "zh" | "en";
+
+const STORAGE_KEY = "comfyui.lang";
+
+function detectLang(): Lang {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved === "zh" || saved === "en") return saved;
+    if (typeof navigator !== "undefined" && /^zh/i.test(navigator.language)) return "zh";
+  } catch {
+    /* ignore */
+  }
+  return "zh";
+}
+
+export const useI18n = create<{ lang: Lang; setLang: (l: Lang) => void }>((set) => ({
+  lang: detectLang(),
+  setLang: (lang) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, lang);
+    } catch {
+      /* ignore */
+    }
+    set({ lang });
+  },
+}));
+
+export type TFunc = (key: string, vars?: Record<string, string | number>) => string;
+
+/** 双语文本：数据层（模型/工作流/依赖）用此结构承载中英文，渲染时按当前语言取值 */
+export type LocalizedText = { zh: string; en: string };
+
+export function localizeText(lang: Lang, text: LocalizedText): string {
+  return text[lang] ?? text.zh;
+}
+
+export function useLocalize(): (text: LocalizedText) => string {
+  const lang = useI18n((s) => s.lang);
+  return (text) => localizeText(lang, text);
+}
+
+type Message = { zh: string; en: string };
+
+const MESSAGES: Record<string, Message> = {
+  // 应用 / 品牌
+  "app.name": { zh: "ComfyUI 安装助手", en: "ComfyUI Installer" },
+  "app.tagline": { zh: "全自动安装 · 在线更新 · 服务托管", en: "One-click install · Auto update · Service hosting" },
+  "app.loading": { zh: "请稍候...", en: "Please wait..." },
+  "app.subtitle.container": { zh: "容器版", en: "Docker" },
+  "app.subtitle.host": { zh: "宿主机版", en: "Local" },
+  "app.subtitle.controller": { zh: "桌面后台控制器", en: "Desktop controller" },
+
+  // 标题栏
+  "titlebar.toLight": { zh: "切到亮色主题", en: "Switch to light theme" },
+  "titlebar.toDark": { zh: "切到暗色主题", en: "Switch to dark theme" },
+  "titlebar.minimize": { zh: "最小化", en: "Minimize" },
+  "titlebar.maximize": { zh: "最大化 / 还原", en: "Maximize / Restore" },
+  "titlebar.close": { zh: "关闭", en: "Close" },
+
+  // 侧边栏 / 导航
+  "nav.console": { zh: "控制台", en: "Console" },
+  "nav.workflows": { zh: "工作流中心", en: "Workflows" },
+  "nav.models": { zh: "模型/节点", en: "Models & Nodes" },
+  "nav.environment": { zh: "检测与修复", en: "Environment" },
+  "nav.settings": { zh: "设置", en: "Settings" },
+  "sidebar.collapse": { zh: "收起侧边栏", en: "Collapse sidebar" },
+  "sidebar.expand": { zh: "展开侧边栏", en: "Expand sidebar" },
+  "sidebar.contact": { zh: "联系作者", en: "Contact" },
+  "sidebar.contact.channels": { zh: "微信 / QQ / 邮箱", en: "WeChat / QQ / Email" },
+
+  // 通用
+  "common.language": { zh: "语言", en: "Language" },
+  "common.chinese": { zh: "中文", en: "中文" },
+  "common.english": { zh: "English", en: "English" },
+  "common.copy": { zh: "复制", en: "Copy" },
+  "common.open": { zh: "打开", en: "Open" },
+  "common.close": { zh: "关闭", en: "Close" },
+  "common.copied": { zh: "已复制", en: "Copied" },
+  "common.refresh": { zh: "刷新", en: "Refresh" },
+  "common.scanning": { zh: "扫描中…", en: "Scanning…" },
+  "common.back": { zh: "返回", en: "Back" },
+
+  // 服务状态
+  "status.running": { zh: "运行中", en: "Running" },
+  "status.starting": { zh: "启动中", en: "Starting" },
+  "status.restarting": { zh: "重启中", en: "Restarting" },
+  "status.stopping": { zh: "停止中", en: "Stopping" },
+  "status.error": { zh: "运行异常", en: "Error" },
+  "status.stopped": { zh: "已停止", en: "Stopped" },
+  "status.unknown": { zh: "未知", en: "Unknown" },
+  "status.notRunning": { zh: "当前未运行", en: "Not running" },
+
+  // 服务控制
+  "controls.openUi": { zh: "打开 UI", en: "Open UI" },
+  "controls.openUiTitle": { zh: "用默认浏览器打开 ComfyUI", en: "Open ComfyUI in default browser" },
+  "controls.start": { zh: "启动", en: "Start" },
+  "controls.restart": { zh: "重启", en: "Restart" },
+  "controls.stop": { zh: "停止", en: "Stop" },
+  "controls.uninstall": { zh: "卸载", en: "Uninstall" },
+  "controls.reinstall": { zh: "重新安装", en: "Reinstall" },
+
+  // 服务操作日志
+  "service.log.start": { zh: "[service] 启动: {res}", en: "[service] Start: {res}" },
+  "service.log.startFailed": { zh: "[service] 启动失败: {msg}", en: "[service] Start failed: {msg}" },
+  "service.log.restart": { zh: "[service] 重启", en: "[service] Restart" },
+  "service.log.restartFailed": { zh: "[service] 重启失败: {msg}", en: "[service] Restart failed: {msg}" },
+  "service.log.stop": { zh: "[service] 停止", en: "[service] Stop" },
+  "service.log.stopFailed": { zh: "[service] 停止失败: {msg}", en: "[service] Stop failed: {msg}" },
+  "service.log.uninstallDone": { zh: "[service] 卸载完成", en: "[service] Uninstall complete" },
+  "service.log.uninstallFailed": { zh: "[service] 卸载失败: {msg}", en: "[service] Uninstall failed: {msg}" },
+
+  // 卸载方式选择弹窗
+  "uninstall.title": { zh: "卸载 ComfyUI", en: "Uninstall ComfyUI" },
+  "uninstall.question": { zh: "请选择卸载方式。模型文件体积较大，删除后无法恢复。", en: "Choose an uninstall mode. Model files are large and cannot be recovered once deleted." },
+  "uninstall.keepModels": { zh: "保留模型，只卸载 ComfyUI", en: "Keep models, uninstall ComfyUI" },
+  "uninstall.keepModelsDesc": { zh: "删除程序和配置，模型保留到 {dir}_models", en: "Remove the app and config; models are kept at {dir}_models" },
+  "uninstall.all": { zh: "全部删除（含模型）", en: "Delete everything (including models)" },
+  "uninstall.allDesc": { zh: "删除整个安装目录，包括所有已下载模型", en: "Delete the entire install directory, including all downloaded models" },
+
+  // 运行时长
+  "uptime.running": { zh: "已运行 {time}", en: "Running for {time}" },
+  "uptime.zero": { zh: "0秒", en: "0s" },
+  "uptime.hours": { zh: "{h}小时{m}分", en: "{h}h {m}m" },
+  "uptime.minutes": { zh: "{m}分{s}秒", en: "{m}m {s}s" },
+  "uptime.seconds": { zh: "{s}秒", en: "{s}s" },
+
+  // 安装步骤
+  "step.python": { zh: "准备 Python 环境", en: "Prepare Python environment" },
+  "step.comfyui": { zh: "下载 ComfyUI", en: "Download ComfyUI" },
+  "step.venv": { zh: "创建虚拟环境", en: "Create virtual environment" },
+  "step.pytorch": { zh: "安装 PyTorch", en: "Install PyTorch" },
+  "step.deps": { zh: "安装 ComfyUI 依赖", en: "Install ComfyUI dependencies" },
+  "step.config": { zh: "配置启动器 & 服务管理", en: "Configure launcher & service" },
+  "step.docker_check": { zh: "检测 Docker Desktop", en: "Detect Docker Desktop" },
+  "step.data": { zh: "准备数据目录 & 配置文件", en: "Prepare data directory & config" },
+  "step.docker_pull": { zh: "拉取 ComfyUI 镜像（耐心等待）", en: "Pull ComfyUI image (please wait)" },
+  "step.compose": { zh: "验证 docker-compose", en: "Verify docker-compose" },
+
+  // Welcome 页
+  "welcome.title": { zh: "选择部署方式", en: "Select deployment method" },
+  "welcome.existing": { zh: "检测到已安装 · ", en: "Already installed detected · " },
+  "welcome.existingSub": { zh: "直接进入管理器", en: "Go to manager directly" },
+  "welcome.openManager": { zh: "打开管理器", en: "Open manager" },
+  "welcome.version": { zh: "ComfyUI 安装版本", en: "ComfyUI version" },
+  "welcome.versionDesc": { zh: "默认安装最新版；也可以指定分支或标签。", en: "Install latest by default; or specify a branch/tag." },
+  "welcome.current": { zh: "当前：", en: "Current: " },
+  "welcome.latest": { zh: "最新版", en: "Latest" },
+  "welcome.unset": { zh: "未填写", en: "Not set" },
+  "welcome.installLatest": { zh: "安装最新版", en: "Install latest" },
+  "welcome.installLatestDesc": { zh: "直接跟随官方 main，适合大多数用户。", en: "Follow official main; suits most users." },
+  "welcome.customVersion": { zh: "指定版本", en: "Specify version" },
+  "welcome.customVersionDesc": { zh: "手动填写分支名、标签名，按指定版本安装。", en: "Enter a branch/tag name to install a specific version." },
+  "welcome.customPlaceholder": { zh: "例如：v0.33.1", en: "e.g.: v0.33.1" },
+  "welcome.customEmpty": { zh: "请选择或输入版本号。", en: "Please choose or enter a version." },
+  "welcome.customHint": { zh: "下拉选择稳定版本，也可手动输入任意版本号（Git 标签）。", en: "Pick a stable version, or type any version tag." },
+  "welcome.dirLabel": { zh: "安装目录（推荐非系统盘）", en: "Install directory (non-system drive recommended)" },
+  "welcome.dirHint": { zh: "模型文件体积较大，建议选择容量 ≥ 50GB 的磁盘。", en: "Models are large; choose a disk with ≥ 50GB free." },
+  "welcome.dirInvalid": { zh: "安装路径无效", en: "Invalid install path" },
+  "welcome.nextDocker": { zh: "下一步：Docker 环境检测", en: "Next: Docker environment detection" },
+  "welcome.nextHost": { zh: "下一步：环境检测 & 安装", en: "Next: Environment detection & install" },
+
+  // 部署方式卡片
+  "mode.host": { zh: "本地部署", en: "Local deployment" },
+  "mode.docker": { zh: "容器版部署", en: "Docker deployment" },
+  "mode.hostSub": { zh: "推荐普通用户 · 显卡直通", en: "For regular users · GPU passthrough" },
+  "mode.dockerSub": { zh: "推荐技术用户 · 可隔离迁移", en: "For technical users · Isolated & portable" },
+  "mode.hostPro": { zh: "优点：GPU 直通最稳、显存占用最低、启动速度最快。", en: "Pros: stable GPU passthrough, lowest VRAM usage, fastest startup." },
+  "mode.dockerPro": { zh: "优点：版本随时回滚、环境可迁移、多套隔离。", en: "Pros: rollback anytime, portable env, isolated instances." },
+  "mode.hostCon": { zh: "缺点：跨机迁移需重装；系统重装要重跑安装。", en: "Cons: reinstall when migrating machines or reinstalling OS." },
+  "mode.dockerCon": { zh: "缺点：需先装 Docker Desktop（约 2GB）；显存额外 +1~2GB 开销。", en: "Cons: requires Docker Desktop (~2GB); extra 1-2GB VRAM overhead." },
+  "mode.hostNot": { zh: "不适合：需要多版本同时跑 / 精确还原生产环境。", en: "Not for: running multiple versions / exact prod replication." },
+  "mode.dockerNot": { zh: "不适合：纯小白；内存 ≤ 16GB；不想装 Docker。", en: "Not for: beginners; RAM ≤ 16GB; don't want Docker." },
+  "mode.hostNoteTitle": { zh: "注意事项", en: "Notes" },
+  "mode.hostNote1": { zh: "建议安装在非系统盘（默认 D:\\ComfyUI），空间 ≥ 30GB", en: "Install on a non-system drive (default D:\\ComfyUI), ≥ 30GB free" },
+  "mode.hostNote2": { zh: "NVIDIA 显卡请提前更新到最新 Game Ready 驱动", en: "Update NVIDIA to the latest Game Ready driver first" },
+  "mode.hostNote3": { zh: "安装过程请勿关闭窗口，模型下载体积较大", en: "Do not close the window during install; models are large" },
+  "mode.dockerReqTitle": { zh: "前置要求", en: "Prerequisites" },
+  "mode.dockerReq1": { zh: "开启 Windows WSL2", en: "Enable Windows WSL2" },
+  "mode.dockerReq2": { zh: "安装 Docker Desktop", en: "Install Docker Desktop" },
+  "mode.dockerReq3": { zh: "Docker 设置中启用 WSL2 引擎", en: "Enable WSL2 engine in Docker settings" },
+
+  // Detect 页
+  "detect.checking": { zh: "环境检测中", en: "Detecting environment" },
+  "detect.result": { zh: "环境检测结果", en: "Environment detection result" },
+  "detect.noPython": { zh: "无系统 Python → 下一步自动下载便携版 Python 3.10", en: "No system Python → will auto-download portable Python 3.10" },
+  "detect.noDocker": { zh: "未检测到 Docker → 点此下载 Docker Desktop", en: "Docker not detected → click to download Docker Desktop" },
+  "detect.redetect": { zh: "重新检测", en: "Re-detect" },
+  "detect.nextPython": { zh: "下一步：自动下载便携版 Python 并安装", en: "Next: auto-download portable Python & install" },
+  "detect.nextDocker": { zh: "下一步：请先安装 Docker Desktop", en: "Next: install Docker Desktop first" },
+  "detect.start": { zh: "开始安装", en: "Start install" },
+  "detect.errorSystem": { zh: "系统检测失败", en: "System detection failed" },
+  "detect.errorGpu": { zh: "GPU 检测失败", en: "GPU detection failed" },
+  "detect.errorPython": { zh: "Python 检测失败", en: "Python detection failed" },
+  "detect.errorDocker": { zh: "Docker 检测失败", en: "Docker detection failed" },
+
+  // Install 页
+  "install.installing": { zh: "正在安装", en: "Installing" },
+  "install.done": { zh: "✅ 安装已完成", en: "Installation complete" },
+  "install.starting": { zh: "🚀 正在自动启动 ComfyUI…", en: "Auto-starting ComfyUI…" },
+  "install.running": { zh: "▶️ 服务已启动，即将进入管理器", en: "Service started, entering manager" },
+  "install.doneSub": { zh: "马上会自动启动服务并打开内置 UI 页面，无需手动点击。", en: "Will auto-start the service and open the built-in UI; no manual clicks needed." },
+  "install.startingSub": { zh: "等待服务端口就绪，稍后自动跳转到管理器。", en: "Waiting for the service port; will redirect to the manager." },
+  "install.runningSub": { zh: "UI 加载中，马上就好…", en: "Loading UI, almost there…" },
+  "install.enter": { zh: "立即进入 →", en: "Enter now →" },
+  "install.failed": { zh: "❌ 安装失败", en: "Installation failed" },
+  "install.commonReasons": { zh: "常见原因：", en: "Common causes:" },
+  "install.reason1": { zh: "Docker Desktop 未启动", en: "Docker Desktop is not running" },
+  "install.reason2": { zh: "未启用 WSL2 引擎", en: "WSL2 engine is not enabled" },
+  "install.reason3": { zh: "镜像拉取失败：可先切宿主机版或配置网络加速源", en: "Image pull failed: switch to local mode or configure a mirror" },
+  "install.retry": { zh: "重试", en: "Retry" },
+  "install.advanced": { zh: "高级设置", en: "Advanced settings" },
+
+  // 安装进度
+  "install.progressTitle": { zh: "安装进度", en: "Installation progress" },
+  "install.progressTotal": { zh: "总进度 ", en: "Total progress " },
+
+  // 安装流程日志
+  "install.log.python": { zh: "[install] === 步骤 {i}/{total}: 准备 Python ===", en: "[install] === Step {i}/{total}: Prepare Python ===" },
+  "install.log.comfyuiLatest": { zh: "[install] === 步骤 {i}/{total}: 下载 ComfyUI（最新版）===", en: "[install] === Step {i}/{total}: Download ComfyUI (latest) ===" },
+  "install.log.comfyuiCustom": { zh: "[install] === 步骤 {i}/{total}: 下载 ComfyUI（指定版本 {ref}）===", en: "[install] === Step {i}/{total}: Download ComfyUI (version {ref}) ===" },
+  "install.log.venv": { zh: "[install] === 步骤 {i}/{total}: 创建虚拟环境 ===", en: "[install] === Step {i}/{total}: Create virtual environment ===" },
+  "install.log.pytorch": { zh: "[install] === 步骤 {i}/{total}: 安装 PyTorch（耗时最久，耐心等待）===", en: "[install] === Step {i}/{total}: Install PyTorch (longest step, please wait) ===" },
+  "install.log.deps": { zh: "[install] === 步骤 {i}/{total}: 安装 ComfyUI 依赖 ===", en: "[install] === Step {i}/{total}: Install ComfyUI dependencies ===" },
+  "install.log.config": { zh: "[install] === 步骤 {i}/{total}: 配置启动器 ===", en: "[install] === Step {i}/{total}: Configure launcher ===" },
+  "install.log.dockerCheck": { zh: "[install] === 步骤 {i}/{total}: 检测 Docker 环境 ===", en: "[install] === Step {i}/{total}: Detect Docker environment ===" },
+  "install.log.data": { zh: "[install] === 步骤 {i}/{total}: 准备数据目录 + compose ===", en: "[install] === Step {i}/{total}: Prepare data directory + compose ===" },
+  "install.log.dockerPull": { zh: "[install] === 步骤 {i}/{total}: 拉取镜像（首次慢，耐心等待）===", en: "[install] === Step {i}/{total}: Pull image (first time is slow, please wait) ===" },
+  "install.log.composeUp": { zh: "[install] === 步骤 {i}/{total}: compose up 启动容器 ===", en: "[install] === Step {i}/{total}: Start container via compose up ===" },
+  "install.log.allDone": { zh: "[install] === 所有步骤完成 ===", en: "[install] === All steps complete ===" },
+  "install.log.presetWorkflow": { zh: "[install] 已预置工作流「{name}」", en: "[install] Preset workflow \"{name}\" installed" },
+  "install.log.presetWarn": { zh: "[warn] 预置工作流失败: {err}（可在管理器的工作流市场手动安装）", en: "[warn] Preset workflow failed: {err} (install manually from the workflow center)" },
+  "install.log.launchWarn": { zh: "[warn] 启动脚本失败: {err}，仍将进入管理器页（手动启动）", en: "[warn] Launch script failed: {err}; entering manager anyway (start manually)" },
+  "install.log.ready": { zh: "[install] ✅ 服务已就绪 — 即将进入管理器…", en: "[install] Service ready — entering manager…" },
+  "install.log.status": { zh: "[install] 状态：{status}，进入管理器后可手动启动", en: "[install] Status: {status}; start manually after entering the manager" },
+  "install.log.notDetected": { zh: "[install] 未探测到运行中服务，进入管理器后请手动启动", en: "[install] No running service detected; start manually after entering the manager" },
+  "install.dockerNotReady": { zh: "Docker 环境未就绪：请启动 Docker Desktop + WSL2", en: "Docker not ready: start Docker Desktop + WSL2" },
+  "install.unknownError": { zh: "未知错误", en: "Unknown error" },
+
+  // 日志
+  "log.title": { zh: "实时日志", en: "Live log" },
+  "log.entries": { zh: "{count} 条", en: "{count} entries" },
+  "log.copy": { zh: "复制日志", en: "Copy log" },
+  "log.clear": { zh: "清空", en: "Clear" },
+  "log.waiting": { zh: "等待安装开始…", en: "Waiting for installation…" },
+  "log.collapse": { zh: "收起", en: "Collapse" },
+  "log.view": { zh: "查看", en: "View" },
+  "log.detail": { zh: "详细日志", en: "detailed log" },
+  "log.empty": { zh: "暂无日志", en: "No logs yet" },
+
+  // 硬件检测
+  "hw.title": { zh: "硬件检测结果", en: "Hardware detection" },
+  "hw.system": { zh: "系统", en: "System" },
+  "hw.cpu": { zh: "CPU 处理器", en: "CPU" },
+  "hw.ram": { zh: "内存 RAM", en: "RAM" },
+  "hw.gpu": { zh: "GPU 显卡", en: "GPU" },
+  "hw.driver": { zh: "驱动 · CUDA 加速", en: "Driver · CUDA" },
+  "hw.vram": { zh: "显存规格", en: "VRAM spec" },
+  "hw.detecting": { zh: "检测中…", en: "Detecting…" },
+  "hw.waitingSystem": { zh: "等待检测系统版本…", en: "Waiting for system info…" },
+  "hw.waitingCpu": { zh: "等待检测 CPU…", en: "Waiting for CPU…" },
+  "hw.waitingRam": { zh: "等待检测内存…", en: "Waiting for RAM…" },
+  "hw.waitingGpu": { zh: "等待检测显卡型号…", en: "Waiting for GPU…" },
+  "hw.waitingDriver": { zh: "等待检测驱动版本…", en: "Waiting for driver…" },
+  "hw.waitingVram": { zh: "等待检测显存规格…", en: "Waiting for VRAM…" },
+  "hw.cores": { zh: "{n} 核", en: "{n} cores" },
+  "hw.bus": { zh: "位宽 {n}-bit", en: "{n}-bit" },
+
+  // Python / Docker 环境
+  "env.pythonTitle": { zh: "Python 环境（本地部署依赖）", en: "Python environment (local deployment)" },
+  "env.dockerTitle": { zh: "Docker 环境（容器版部署依赖）", en: "Docker environment (container deployment)" },
+  "env.detecting": { zh: "版本检测中…", en: "Detecting version…" },
+  "env.compatible": { zh: "兼容 {v}", en: "Compatible {v}" },
+  "env.incompatible": { zh: "版本不兼容（建议 3.10 ~ 3.12）", en: "Incompatible (3.10–3.12 recommended)" },
+  "env.waiting": { zh: "等待检测结果…", en: "Waiting for result…" },
+  "env.pythonVersion": { zh: "Python 版本", en: "Python version" },
+  "env.exePath": { zh: "可执行路径", en: "Executable path" },
+  "env.waitingPython": { zh: "等待检测 Python 版本…", en: "Waiting for Python version…" },
+  "env.waitingPath": { zh: "等待检测安装路径…", en: "Waiting for install path…" },
+  "env.selfCheck": { zh: "环境依赖自检（5项）", en: "Environment self-check (5 items)" },
+  "env.pip": { zh: "pip 包管理器", en: "pip package manager" },
+  "env.git": { zh: "Git 版本控制", en: "Git" },
+  "env.node": { zh: "Node.js 18 LTS", en: "Node.js 18 LTS" },
+  "env.venv": { zh: "虚拟环境 venv", en: "venv" },
+  "env.vcpp": { zh: "VC++ Redist 2022", en: "VC++ Redist 2022" },
+  "env.dockerDetecting": { zh: "Docker 检测中…", en: "Detecting Docker…" },
+  "env.dockerRunning": { zh: "守护进程运行中", en: "Daemon running" },
+  "env.dockerStopped": { zh: "Docker 未启动", en: "Docker not started" },
+  "env.dockerVersion": { zh: "Docker 版本", en: "Docker version" },
+  "env.wsl": { zh: "WSL2 / GPU 直通", en: "WSL2 / GPU passthrough" },
+  "env.waitingDocker": { zh: "等待检测 Docker 版本…", en: "Waiting for Docker version…" },
+  "env.wslEnabled": { zh: "WSL2 引擎启用", en: "WSL2 engine enabled" },
+  "env.wslDisabled": { zh: "未启用 WSL2", en: "WSL2 not enabled" },
+  "env.nvidiaOk": { zh: "NVIDIA 直通可用", en: "NVIDIA passthrough available" },
+  "env.nvidiaNo": { zh: "GPU 直通未配置", en: "GPU passthrough not configured" },
+  "env.waitingWsl": { zh: "等待检测 WSL2 + GPU…", en: "Waiting for WSL2 + GPU…" },
+  "env.dockerCheck": { zh: "容器依赖自检（3项）", en: "Container self-check (3 items)" },
+  "env.wslEnabled2": { zh: "WSL2 引擎已启用", en: "WSL2 engine enabled" },
+  "env.nvidiaContainer": { zh: "NVIDIA Container", en: "NVIDIA Container" },
+  "env.noMissing": { zh: "无缺失依赖项", en: "No missing dependencies" },
+
+  // 能力评估
+  "rec.open": { zh: "查看本机能力评估（按当前 {vram} GB 显存档位）", en: "View capability assessment (current {vram} GB VRAM)" },
+  "rec.title": { zh: "本机能力评估", en: "Capability assessment" },
+  "rec.section": { zh: "一段式评估说明", en: "Summary" },
+  "rec.loading": { zh: "AI 正在生成专属评估文案…", en: "AI is generating your assessment…" },
+  "rec.footer": { zh: "后期接入服务器AI后，这里会输出个性化推荐文案", en: "After server AI integration, personalized recommendations will appear here." },
+  "rec.gotIt": { zh: "知道了", en: "Got it" },
+  "rec.tier.entry": { zh: "入门级", en: "Entry" },
+  "rec.tier.mid": { zh: "中端", en: "Mid" },
+  "rec.tier.high": { zh: "高端", en: "High" },
+  "rec.tier.flagship": { zh: "旗舰级", en: "Flagship" },
+  "rec.badge.entry": { zh: "入门 · <6 GB", en: "Entry · <6 GB" },
+  "rec.badge.mid": { zh: "中端 · 6~11 GB", en: "Mid · 6~11 GB" },
+  "rec.badge.high": { zh: "高端 · 12~19 GB", en: "High · 12~19 GB" },
+  "rec.badge.flagship": { zh: "旗舰 · ≥20 GB", en: "Flagship · ≥20 GB" },
+  "rec.summary.entry": { zh: "您当前显存较小（入门档），日常图片生成（SD 1.5 / SDXL 低分辨率）完全够用；视频与数字人类建议选择小模型、降低分辨率，3D 资产生成可用轻量方案。", en: "Your VRAM is on the entry tier: daily image generation (SD 1.5 / low-res SDXL) works fine; for video and digital humans, pick smaller models and lower resolutions; use lightweight options for 3D assets." },
+  "rec.summary.mid": { zh: "您的显存在中端档位，图片生成 SD / SDXL Turbo 原生 2K 无压力，短视频（AnimateDiff / SVD 720P）流畅使用；数字人与 3D 推荐中等规模模型，建议避开 14B 级旗舰大模型。", en: "Your VRAM is mid-tier: SD / SDXL Turbo native 2K is smooth, and short videos (AnimateDiff / SVD 720P) run well; use mid-scale models for digital humans and 3D, avoiding 14B-class flagship models." },
+  "rec.summary.high": { zh: "您的显存在高端档位，图片类（SDXL + FLUX.1 双栈）、视频类（CogVideoX 5B / Wan2.1 7B 5-10s）、数字人全身级、3D 多视角高面数生成，基本主流工作流可稳定跑。", en: "Your VRAM is high-tier: image (SDXL + FLUX.1), video (CogVideoX 5B / Wan2.1 7B 5-10s), full-body digital humans, and multi-view high-poly 3D generation all run reliably." },
+  "rec.summary.flagship": { zh: "您当前显存达到旗舰级，图片 SDXL/FLUX/Kolors/8K 超分、视频 Wan2.1/HunyuanVideo 1080P 长视频、4-6 角色同屏数字人直播级、4K 多视角 3D 资产生成全栈原生支持，主流大模型基本无限制。", en: "Your VRAM is flagship-tier: SDXL/FLUX/Kolors/8K upscaling, Wan2.1/HunyuanVideo 1080P long videos, multi-character live digital humans, and 4K multi-view 3D generation are all fully supported." },
+
+  // 仪表盘
+  "gauge.gpu": { zh: "显卡", en: "GPU" },
+  "gauge.cpu": { zh: "CPU", en: "CPU" },
+  "gauge.ram": { zh: "内存", en: "RAM" },
+  "gauge.disk": { zh: "磁盘", en: "Disk" },
+  "gauge.model": { zh: "型号", en: "Model" },
+  "gauge.brand": { zh: "品牌", en: "Brand" },
+  "gauge.driver": { zh: "驱动", en: "Driver" },
+  "gauge.vram": { zh: "显存", en: "VRAM" },
+  "gauge.usage": { zh: "占用", en: "Usage" },
+  "gauge.cores": { zh: "核心", en: "Cores" },
+  "gauge.total": { zh: "总", en: "Total" },
+  "gauge.used": { zh: "已用", en: "Used" },
+  "gauge.available": { zh: "可用", en: "Available" },
+  "gauge.free": { zh: "剩余", en: "Free" },
+  "gauge.drive": { zh: "盘符", en: "Drive" },
+
+  // 控制台总览
+  "console.envTitle": { zh: "ComfyUI 环境", en: "ComfyUI environment" },
+  "console.comfyui": { zh: "ComfyUI", en: "ComfyUI" },
+  "console.hardware": { zh: "硬件占用", en: "Hardware usage" },
+  "console.resources": { zh: "本地资源", en: "Local resources" },
+  "console.todo": { zh: "需要处理", en: "Needs attention" },
+  "console.currentError": { zh: "当前环境异常", en: "Environment abnormal" },
+  "console.warnings": { zh: "发现 {n} 个警告", en: "{n} warnings found" },
+  "console.normal": { zh: "正常", en: "Normal" },
+  "console.summary": { zh: "正常 {normal} · 警告 {warning} · 错误 {error}", en: "Normal {normal} · Warning {warning} · Error {error}" },
+  "console.notChecked": { zh: "尚未检测", en: "Not checked yet" },
+  "console.detectRepair": { zh: "检测与修复", en: "Detect & repair" },
+  "console.detecting": { zh: "检测中…", en: "Detecting…" },
+  "console.redetect": { zh: "重新检测", en: "Re-detect" },
+  "console.detectNow": { zh: "立即检测", en: "Detect now" },
+  "console.models": { zh: "模型", en: "Models" },
+  "console.nodes": { zh: "节点", en: "Nodes" },
+  "console.workflows": { zh: "工作流", en: "Workflows" },
+  "console.noIssues": { zh: "无待处理问题", en: "No pending issues" },
+  "console.viewIssues": { zh: "查看问题", en: "View issues" },
+  "console.loading.title": { zh: "正在初始化控制台…", en: "Initializing console…" },
+  "console.loading.hardware": { zh: "读取显卡 / CPU / 内存 / 磁盘占用", en: "Reading GPU / CPU / RAM / disk usage" },
+  "console.loading.resources": { zh: "扫描本地模型 / 节点 / 工作流", en: "Scanning local models / nodes / workflows" },
+
+  // 管理页
+  "manage.log.copiedError": { zh: "[manage] 已复制最近一次启动错误", en: "[manage] Copied last startup error" },
+  "manage.log.copyFailed": { zh: "[manage] 复制错误失败: {err}", en: "[manage] Copy error failed: {err}" },
+  "manage.log.openedBrowser": { zh: "[manage] 已用默认浏览器打开: {target}", en: "[manage] Opened in default browser: {target}" },
+  "manage.log.openBrowserFailed": { zh: "[manage] 浏览器打开失败: {err}", en: "[manage] Browser open failed: {err}" },
+  "manage.contactTitle": { zh: "点击查看联系方式", en: "View contact info" },
+  "manage.downloadTitle": { zh: "点击下载最新版本", en: "Download latest version" },
+  "manage.newVersion": { zh: "新版本 v{version}", en: "New version v{version}" },
+  "manage.lastErrorTitle": { zh: "最近一次启动错误（已固定保留，不会自己消失）：", en: "Last startup error (pinned, will not auto-hide):" },
+  "manage.copyError": { zh: "复制错误", en: "Copy error" },
+  "manage.closeErrorTitle": { zh: "关闭错误卡片", en: "Close error card" },
+  "manage.noInstallDir": { zh: "未检测到 installDir（D:\\ComfyUI），请先返回安装流程重新选择目录。", en: "No installDir detected (D:\\ComfyUI); go back to the install flow and reselect a directory." },
+
+  // 客户端更新
+  "update.available": { zh: "发现新版本 v{version}", en: "New version v{version} available" },
+  "update.download": { zh: "下载更新", en: "Download update" },
+  "update.downloading": { zh: "下载中…", en: "Downloading…" },
+  "update.installed": { zh: "更新已安装，请重启应用", en: "Update installed, restart the app" },
+  "update.checkFailed": { zh: "检查更新失败", en: "Check update failed" },
+  "update.installFailed": { zh: "安装更新失败", en: "Install update failed" },
+
+  // 设置面板
+  "sp.title": { zh: "设置", en: "Settings" },
+  "sp.comfyuiEnv": { zh: "ComfyUI 环境", en: "ComfyUI environment" },
+  "sp.comfyuiPath": { zh: "ComfyUI 路径", en: "ComfyUI path" },
+  "sp.pythonPath": { zh: "Python 路径", en: "Python path" },
+  "sp.port": { zh: "端口", en: "Port" },
+  "sp.launchArgs": { zh: "启动参数", en: "Launch args" },
+  "sp.launchArgsPlaceholder": { zh: "例如：--lowvram --use-split-cross-attention", en: "e.g.: --lowvram --use-split-cross-attention" },
+  "sp.launchArgsHint": { zh: "留空使用默认启动方式；参数将写入 ComfyUI 启动脚本。", en: "Leave blank for the default startup; args are written to the ComfyUI launch script." },
+  "sp.save": { zh: "保存配置", en: "Save config" },
+  "sp.dirs": { zh: "目录", en: "Directories" },
+  "sp.installDir": { zh: "安装目录", en: "Install directory" },
+  "sp.resultsDir": { zh: "结果目录", en: "Results directory" },
+  "sp.modelsDir": { zh: "模型目录", en: "Models directory" },
+  "sp.nodesDir": { zh: "节点目录", en: "Nodes directory" },
+  "sp.workflowsDir": { zh: "工作流目录", en: "Workflows directory" },
+  "sp.portInvalid": { zh: "端口需为 1-65535 之间的整数", en: "Port must be an integer between 1-65535" },
+  "sp.saveFailed": { zh: "保存失败：{err}", en: "Save failed: {err}" },
+  "sp.saveOk": { zh: "已保存，重启 ComfyUI 后生效", en: "Saved; takes effect after restarting ComfyUI" },
+
+  // 工作流中心
+  "wf.center": { zh: "工作流中心", en: "Workflow center" },
+  "wf.tab.all": { zh: "全部", en: "All" },
+  "wf.tab.free": { zh: "免费", en: "Free" },
+  "wf.tab.featured": { zh: "精品", en: "Featured" },
+  "wf.tab.new": { zh: "最新", en: "New" },
+  "wf.tab.hot": { zh: "热门", en: "Hot" },
+  "wf.tab.installed": { zh: "已安装", en: "Installed" },
+  "wf.tab.mine": { zh: "我的工作流", en: "My workflows" },
+  "wf.search": { zh: "搜索工作流 / 依赖…", en: "Search workflows / dependencies…" },
+  "wf.recommended": { zh: "推荐", en: "Recommended" },
+  "wf.allWorkflows": { zh: "全部工作流", en: "All workflows" },
+  "wf.filterResult": { zh: "筛选结果", en: "Filtered results" },
+  "wf.noMatch": { zh: "无匹配的工作流", en: "No matching workflows" },
+  "wf.noLocal": { zh: "暂无本地工作流，安装上方工作流后会自动出现在这里", en: "No local workflows yet; installed workflows appear here." },
+  "wf.tag.free": { zh: "免费", en: "Free" },
+  "wf.tag.featured": { zh: "精品", en: "Featured" },
+  "wf.tag.new": { zh: "最新", en: "New" },
+  "wf.tag.hot": { zh: "热门", en: "Hot" },
+  "wf.tag.cannotRun": { zh: "无法运行", en: "Cannot run" },
+  "wf.like": { zh: "点赞", en: "Like" },
+  "wf.unlike": { zh: "取消点赞", en: "Unlike" },
+  "wf.downloadsTitle": { zh: "下载 / 安装次数", en: "Downloads / installs" },
+  "wf.fix": { zh: "一键修复", en: "One-click fix" },
+  "wf.fixTitle": { zh: "一键下载缺失的模型", en: "Download missing models" },
+  "wf.fixing": { zh: "修复中…", en: "Fixing…" },
+  "wf.install": { zh: "安装", en: "Install" },
+  "wf.installing": { zh: "安装中…", en: "Installing…" },
+  "wf.installed": { zh: "已安装", en: "Installed" },
+  "wf.missing": { zh: "缺少：", en: "Missing: " },
+  "wf.manual": { zh: "需手动：", en: "Manual: " },
+  "wf.downloading": { zh: "正在下载 {name}", en: "Downloading {name}" },
+  "wf.openTitle": { zh: "服务未运行，请先在控制台启动", en: "Service not running; start it in the console first." },
+  "wf.delete": { zh: "删除", en: "Delete" },
+  "wf.deleting": { zh: "删除中…", en: "Deleting…" },
+  "wf.deleteTitle": { zh: "删除此工作流", en: "Delete this workflow" },
+  "wf.confirmDelete": { zh: "确认删除工作流「{name}」？", en: "Delete workflow \"{name}\"?" },
+  "wf.depsExist": { zh: "依赖已存在，无需修复", en: "Dependencies already exist." },
+  "wf.deleteFailed": { zh: "删除失败：{msg}", en: "Delete failed: {msg}" },
+  "wf.fixAll": { zh: "一键修复所有", en: "Fix all" },
+  "wf.fixingAll": { zh: "修复所有中…", en: "Fixing all…" },
+  "wf.installingDeps": { zh: "正在安装 {parts}，完成后将自动重启", en: "Installing {parts}; will auto-restart when done." },
+  "wf.installDoneNeedRestart": { zh: "已更新完成，需重启 ComfyUI 才可生效", en: "Update complete. Restart ComfyUI to take effect." },
+  "wf.restartConfirm": { zh: "所有依赖已更新完成，需要重启 ComfyUI 才能生效。\n是否立即重启？", en: "All dependencies are updated. Restart ComfyUI to take effect.\nRestart now?" },
+  "wf.restartNow": { zh: "立即重启", en: "Restart now" },
+  "wf.fixFailed": { zh: "修复失败：{msg}", en: "Fix failed: {msg}" },
+  "wf.installFailed": { zh: "安装失败：{msg}", en: "Install failed: {msg}" },
+  "wf.needTauri": { zh: "需在 Tauri 真窗口下运行，且已检测到安装目录", en: "Run in a Tauri window with an install directory detected." },
+  "wf.nodesCount": { zh: "{n} 个节点", en: "{n} nodes" },
+  "wf.translateNode": { zh: "中文翻译节点", en: "Chinese translation node" },
+  "wf.modelsCount": { zh: "{n} 个模型", en: "{n} models" },
+  "wf.installMsg": { zh: "已安装「{name}」到 ComfyUI 工作流目录。在 ComfyUI 顶部「工作流（w）」菜单点刷新（或按 F5）即可看到并直接打开运行，无需重启。", en: "Installed \"{name}\" to the ComfyUI workflow directory. In ComfyUI, refresh the \"Workflow (w)\" menu (or press F5) to see and run it without restarting." },
+  "wf.translateHint": { zh: "提示词框可直接写中文，会自动翻译成英文（首次运行会下载约 300MB 本地翻译模型，稍慢）。", en: "You can type Chinese prompts; they are auto-translated to English (first run downloads ~300MB local model, slightly slow)." },
+  "wf.llmNode": { zh: "本地大模型节点", en: "Local LLM node" },
+  "wf.llmHint": { zh: "首次运行会自动下载本地大模型（约 15GB，默认 Qwen2.5-7B），可在环境变量 LOCAL_LLM_MODEL 换其他模型。", en: "First run auto-downloads the local LLM (~15GB, default Qwen2.5-7B); set LOCAL_LLM_MODEL to switch models." },
+  "wf.ttsNode": { zh: "配音节点", en: "TTS node" },
+  "wf.ttsHint": { zh: "首次运行会安装 edge-tts（在线合成，无需下载本地模型）；可在节点里改 voice 换声音，或设环境变量 LOCAL_TTS_VOICE。", en: "First run installs edge-tts (online synthesis, no local model); change the voice in the node or set LOCAL_TTS_VOICE." },
+  "wf.cannotRunMsg": { zh: "此工作流需要 {hint}，您当前的 {gpu}（{vram}GB）无法运行", en: "This workflow requires {hint}, but your {gpu} ({vram}GB) cannot run it." },
+  "wf.cannotRunMsgNoHint": { zh: "此工作流需要 ≥{min}GB 显存，您当前的 {gpu}（{vram}GB）无法运行", en: "This workflow needs ≥{min}GB VRAM, but your {gpu} ({vram}GB) cannot run it." },
+  "wf.logDeleted": { zh: "[workflow] 已删除工作流「{name}」", en: "[workflow] Deleted workflow \"{name}\"" },
+  "wf.logDeleteFailed": { zh: "[workflow] 删除失败: {msg}", en: "[workflow] Delete failed: {msg}" },
+  "wf.logInstalled": { zh: "[workflow] 已安装预设工作流「{name}」", en: "[workflow] Installed preset workflow \"{name}\"" },
+  "wf.logInstallFailed": { zh: "[workflow] 安装失败: {msg}", en: "[workflow] Install failed: {msg}" },
+
+  // 工作流中心 - 三大分区
+  "wf.section.official": { zh: "官方模板", en: "Official templates" },
+  "wf.section.zhirai": { zh: "ZHIRAI 工作流", en: "ZHIRAI workflows" },
+  "wf.section.diagnosis": { zh: "当前工作流诊断", en: "Workflow diagnosis" },
+  "wf.official.title": { zh: "ComfyUI 官方模板", en: "ComfyUI official templates" },
+  "wf.official.desc": { zh: "直接读取 ComfyUI 自带模板库，不复制、不维护。", en: "Reads ComfyUI's built-in blueprint library directly; no copy or maintenance." },
+  "wf.official.noBlueprints": { zh: "未检测到官方模板（ComfyUI/blueprints 目录为空或不存在）", en: "No official templates detected (ComfyUI/blueprints is empty or missing)." },
+  "wf.official.scanning": { zh: "正在读取官方模板…", en: "Reading official templates…" },
+  "wf.official.nodes": { zh: "节点", en: "Nodes" },
+  "wf.official.models": { zh: "模型", en: "Models" },
+  "wf.zhirai.desc": { zh: "ZHIRAI 提供的一键综合工作流（后续逐步增加）。", en: "One-click workflows provided by ZHIRAI (more to come)." },
+  "wf.zhirai.empty": { zh: "暂无工作流。未来可在这里添加 ZHIRAI 设计的一键工作流。", en: "No workflows yet. ZHIRAI one-click workflows will appear here later." },
+  "wf.diag.title": { zh: "当前工作流诊断", en: "Current workflow diagnosis" },
+  "wf.diag.desc": { zh: "选择本地工作流，检测节点 / 模型 / 输入等依赖。", en: "Select a local workflow to check node / model / input dependencies." },
+  "wf.diag.select": { zh: "选择工作流", en: "Select workflow" },
+  "wf.diag.analyze": { zh: "诊断", en: "Diagnose" },
+  "wf.diag.analyzing": { zh: "诊断中…", en: "Diagnosing…" },
+  "wf.diag.noWorkflows": { zh: "暂无本地工作流。请先在 ComfyUI 中导入，或安装上方 ZHIRAI 工作流。", en: "No local workflows. Import one in ComfyUI, or install a ZHIRAI workflow above." },
+  "wf.diag.nodes": { zh: "检测到的节点类型", en: "Detected node types" },
+  "wf.diag.missingNodes": { zh: "缺失节点", en: "Missing nodes" },
+  "wf.diag.apiNodes": { zh: "疑似 API 节点（需配置第三方 API）", en: "Possible API nodes (may need third-party API config)" },
+  "wf.diag.models": { zh: "模型引用", en: "Model references" },
+  "wf.diag.missingModels": { zh: "缺失模型", en: "Missing models" },
+  "wf.diag.inputs": { zh: "输入引用", en: "Input references" },
+  "wf.diag.missingInputs": { zh: "缺失输入", en: "Missing inputs" },
+  "wf.diag.none": { zh: "无", en: "None" },
+  "wf.diag.ok": { zh: "未发现缺失", en: "No missing items" },
+  "wf.diag.error": { zh: "诊断失败", en: "Diagnosis failed" },
+
+  // 存储内部：工作流诊断 / 官方模板
+  "store.previewDiagnosis": { zh: "当前为浏览器预览模式，工作流诊断需在 Tauri 真窗口下运行", en: "Browser preview mode: workflow diagnosis requires the Tauri app window." },
+  "store.log.blueprintsScanFailed": { zh: "[blueprints] 读取官方模板失败: {msg}", en: "[blueprints] Failed to read official templates: {msg}" },
+  "store.log.analyzeFailed": { zh: "[workflow] 工作流诊断失败: {msg}", en: "[workflow] Workflow diagnosis failed: {msg}" },
+
+  // 模型管理
+  "model.tab.models": { zh: "模型", en: "Models" },
+  "model.tab.nodes": { zh: "节点", en: "Nodes" },
+  "model.dir.models": { zh: "模型目录", en: "Models directory" },
+  "model.dir.nodes": { zh: "节点目录", en: "Nodes directory" },
+  "model.preset": { zh: "常用模型（下载后自动安装到模型目录）", en: "Common models (auto-installed after download)" },
+  "model.installed": { zh: "已安装模型", en: "Installed models" },
+  "model.all": { zh: "全部", en: "All" },
+  "model.noModels": { zh: "暂无模型", en: "No models" },
+  "model.noNodes": { zh: "暂无自定义节点", en: "No custom nodes" },
+  "model.download": { zh: "下载", en: "Download" },
+  "model.retry": { zh: "重试", en: "Retry" },
+  "model.downloadTitle": { zh: "一键下载并安装", en: "Download & install" },
+  "model.delete": { zh: "删除", en: "Delete" },
+  "model.deleting": { zh: "删除中…", en: "Deleting…" },
+  "model.deleteTitle": { zh: "删除此模型", en: "Delete this model" },
+  "model.deleteNodeTitle": { zh: "删除此节点", en: "Delete this node" },
+  "model.confirmDelete": { zh: "确认删除模型「{name}」？", en: "Delete model \"{name}\"?" },
+  "model.confirmDeleteNode": { zh: "确认删除节点「{name}」？将删除整个节点目录。", en: "Delete node \"{name}\"? This removes the entire node directory." },
+
+  // 环境检测与修复
+  "env.title": { zh: "环境检测", en: "Environment check" },
+  "env.subtitle": { zh: "检查 ComfyUI、Python、PyTorch、CUDA、GPU、端口、模型与工作流目录", en: "Checks ComfyUI, Python, PyTorch, CUDA, GPU, ports, models & workflow directories." },
+  "env.repairing": { zh: "修复中…", en: "Repairing…" },
+  "env.fix": { zh: "一键修复", en: "One-click repair" },
+  "env.detect": { zh: "一键检测", en: "One-click detect" },
+  "env.redetect": { zh: "重新检测", en: "Re-detect" },
+  "env.checkingVersion": { zh: "正在检查 ComfyUI 版本更新…", en: "Checking for ComfyUI updates…" },
+  "env.newVersion": { zh: "发现新版本：当前 {current} → 最新 {latest}", en: "New version: current {current} → latest {latest}" },
+  "env.updateNow": { zh: "立即更新", en: "Update now" },
+  "env.updating": { zh: "更新中…", en: "Updating…" },
+  "env.latest": { zh: "已是最新版本（{current}）", en: "Already latest ({current})" },
+  "env.version": { zh: "版本：{current}", en: "Version: {current}" },
+  "env.checking": { zh: "（检查更新中…）", en: "(checking…)" },
+  "env.offline": { zh: "（无法联网检查更新）", en: "(offline; cannot check)" },
+  "env.status.normal": { zh: "正常", en: "Normal" },
+  "env.status.warning": { zh: "警告", en: "Warning" },
+  "env.status.error": { zh: "异常", en: "Abnormal" },
+  "env.empty": { zh: "点击「一键检测」检查当前运行环境", en: "Click \"One-click detect\" to check your environment." },
+  "env.detectingAll": { zh: "正在检测系统环境……", en: "Detecting system environment…" },
+  "env.repairingNow": { zh: "正在修复……", en: "Repairing…" },
+  "env.repairResult": { zh: "修复结果", en: "Repair result" },
+  "env.normalCount": { zh: "正常：{n}", en: "Normal: {n}" },
+  "env.warningCount": { zh: "警告：{n}", en: "Warning: {n}" },
+  "env.errorCount": { zh: "错误：{n}", en: "Error: {n}" },
+  "env.done": { zh: "检测完成", en: "Check complete" },
+  "env.fixed": { zh: "已修复：{n}", en: "Fixed: {n}" },
+  "env.failed": { zh: "失败：{n}", en: "Failed: {n}" },
+  "env.versionCheckFailed": { zh: "版本检测失败", en: "Version check failed" },
+  "env.updateDone": { zh: "更新完成", en: "Update complete" },
+  "env.updateFailed": { zh: "更新失败", en: "Update failed" },
+  "env.repairNeedTauri": { zh: "当前为浏览器预览模式，一键修复需在 Tauri 真窗口下运行", en: "Browser preview mode; one-click repair requires the Tauri app window." },
+  "env.repairFailed": { zh: "修复失败", en: "Repair failed" },
+
+  // 设置
+  "settings.title": { zh: "高级设置", en: "Advanced settings" },
+  "settings.versionConfig": { zh: "当前版本配置（来自 versions.json）", en: "Current version config (from versions.json)" },
+  "settings.versionDesc": { zh: "这些配置由服务器下发，本助手启动时会优先拉取远程 manifest。你在下面看到的是本地内嵌的默认配置（离线兜底）。", en: "These configs are pushed from the server; the assistant pulls the remote manifest first. What you see below is the built-in default (offline fallback)." },
+  "settings.notLoaded": { zh: "(未加载)", en: "(not loaded)" },
+  "settings.planTitle": { zh: "V0.2 计划中的可配置项", en: "Configurable items planned for V0.2" },
+  "settings.plan1": { zh: "自定义 pip 加速源 / PyTorch 下载加速源", en: "Custom pip mirror / PyTorch download mirror" },
+  "settings.plan2": { zh: "自定义 ComfyUI 仓库（Git 地址 / zip 地址）", en: "Custom ComfyUI repo (Git / zip URL)" },
+  "settings.plan3": { zh: "PyTorch 版本、CUDA 版本手动选择（按显存优化）", en: "Manually select PyTorch / CUDA versions (optimized by VRAM)" },
+  "settings.plan4": { zh: "代理设置（HTTP/HTTPS 代理）", en: "Proxy settings (HTTP/HTTPS)" },
+  "settings.plan5": { zh: "安装完成后自动下载的模型清单", en: "Model list auto-downloaded after install" },
+  "settings.plan6": { zh: "自更新服务器地址（manifest_url）", en: "Self-update server URL (manifest_url)" },
+  "settings.contact": { zh: "联系方式", en: "Contact" },
+  "settings.contactTitle": { zh: "GitHub / 问题反馈", en: "GitHub / Issues" },
+  "settings.copyright": { zh: "© 2026 zhirai-tech", en: "© 2026 zhirai-tech" },
+
+  // 联系弹窗
+  "contact.title": { zh: "联系作者", en: "Contact author" },
+  "contact.placeholder": { zh: "请放置二维码图片", en: "Place QR code image here" },
+  "contact.scan": { zh: "扫描二维码添加", en: "Scan QR to add" },
+  "contact.logo": { zh: "品牌 Logo", en: "Brand logo" },
+  "contact.footer": { zh: "联系方式可在 src/lib/contact.ts 中统一增改", en: "Contact info can be edited in src/lib/contact.ts" },
+
+  // 安装完成
+  "complete.title": { zh: "安装完成", en: "Installation complete" },
+  "complete.modelsDir": { zh: "模型目录：", en: "Models directory: " },
+  "complete.deploy": { zh: "部署方式", en: "Deployment" },
+  "complete.builtinPython": { zh: "容器内自带", en: "Built into container" },
+  "complete.accel": { zh: "加速", en: "Acceleration" },
+  "complete.installLocation": { zh: "安装位置", en: "Install location" },
+  "complete.presetWorkflows": { zh: "已预置 {n} 个工作流", en: "{n} workflows pre-installed" },
+  "complete.presetHint": { zh: "安装时已写入 ComfyUI 工作流目录，打开 UI 后在 Workflow 菜单即可选择。", en: "Written to the ComfyUI workflow directory during install; select from the Workflow menu after opening the UI." },
+  "complete.launch": { zh: "启动并打开管理器", en: "Start & open manager" },
+  "complete.openDir": { zh: "打开安装目录", en: "Open install directory" },
+  "complete.backHome": { zh: "返回首页", en: "Back to home" },
+  "complete.log.openDirFailed": { zh: "[complete] 打开目录失败: {msg}", en: "[complete] Failed to open directory: {msg}" },
+
+  // 存储内部错误 / 日志（installerStore 等）
+  "store.noInstallDir": { zh: "未检测到安装目录", en: "No install directory detected" },
+  "store.previewNoConfig": { zh: "当前为浏览器预览模式，无法保存配置", en: "Browser preview mode: cannot save config" },
+  "store.previewEnv": { zh: "当前为浏览器预览模式，环境检测需在 Tauri 真窗口下运行", en: "Browser preview mode: environment check requires the Tauri app window" },
+  "store.previewService": { zh: "当前为浏览器预览模式（localhost:1420），非 Tauri 真窗口环境：真实扫描/安装/服务启停命令全部无效，请运行 target/debug/comfyui-installer.exe 真窗口", en: "Browser preview mode (localhost:1420), not a real Tauri window: scan/install/service commands are disabled. Run target/debug/comfyui-installer.exe instead" },
+  "store.unknownError": { zh: "未知错误", en: "Unknown error" },
+  "store.detectFailed": { zh: "检测失败", en: "Detection failed" },
+  "store.scanFailed": { zh: "扫描失败", en: "Scan failed" },
+  "store.downloadFailed": { zh: "下载失败", en: "Download failed" },
+  "store.deleteFailed": { zh: "删除失败", en: "Delete failed" },
+  "store.installFailed": { zh: "安装失败", en: "Install failed" },
+  "store.previewNoDownload": { zh: "当前为浏览器预览模式，无法下载模型", en: "Browser preview mode: cannot download models" },
+  "store.previewNoDeleteModel": { zh: "当前为浏览器预览模式，无法删除模型", en: "Browser preview mode: cannot delete models" },
+  "store.previewNoDeleteNode": { zh: "当前为浏览器预览模式，无法删除节点", en: "Browser preview mode: cannot delete nodes" },
+  "store.previewNoTranslateNode": { zh: "当前为浏览器预览模式，无法安装中文翻译节点", en: "Browser preview mode: cannot install the translation node" },
+  "store.log.configReadFailed": { zh: "[config] 读取配置失败: {msg}", en: "[config] Read config failed: {msg}" },
+  "store.log.configSaved": { zh: "[config] 配置已保存: 端口 {port}", en: "[config] Config saved: port {port}" },
+  "store.log.configSaveFailed": { zh: "[config] 保存配置失败: {msg}", en: "[config] Save config failed: {msg}" },
+  "store.log.envCheckFailed": { zh: "[env-check] 检测失败: {msg}", en: "[env-check] Check failed: {msg}" },
+  "store.log.envMissingBody": { zh: "[env-check] 未检测到 ComfyUI 本体，返回安装页重新部署", en: "[env-check] ComfyUI core not found; returning to install page" },
+  "store.log.resourcesScanFailed": { zh: "[resources] 扫描失败: {msg}", en: "[resources] Scan failed: {msg}" },
+  "store.log.modelNoDir": { zh: "[model] 未检测到安装目录，无法下载模型", en: "[model] No install directory; cannot download model" },
+  "store.log.modelPreview": { zh: "[model] 浏览器预览模式，无法下载模型", en: "[model] Browser preview mode; cannot download model" },
+  "store.log.modelStart": { zh: "[model] 开始下载「{name}」…", en: "[model] Start downloading \"{name}\"…" },
+  "store.log.modelDownloadFailed": { zh: "[model] 下载「{name}」失败: {msg}", en: "[model] Download \"{name}\" failed: {msg}" },
+  "store.log.modelPreviewDelete": { zh: "[model] 浏览器预览模式，无法删除模型", en: "[model] Browser preview mode; cannot delete model" },
+  "store.log.modelDeleted": { zh: "[model] 已删除模型「{name}」", en: "[model] Deleted model \"{name}\"" },
+  "store.log.modelDeleteFailed": { zh: "[model] 删除「{name}」失败: {msg}", en: "[model] Delete \"{name}\" failed: {msg}" },
+  "store.log.nodePreviewDelete": { zh: "[node] 浏览器预览模式，无法删除节点", en: "[node] Browser preview mode; cannot delete node" },
+  "store.log.nodeDeleted": { zh: "[node] 已删除节点「{name}」", en: "[node] Deleted node \"{name}\"" },
+  "store.log.nodeDeleteFailed": { zh: "[node] 删除「{name}」失败: {msg}", en: "[node] Delete \"{name}\" failed: {msg}" },
+  "store.log.nodePreviewTranslate": { zh: "[node] 浏览器预览模式，无法安装中文翻译节点", en: "[node] Browser preview mode; cannot install the translation node" },
+  "store.log.nodeTranslateInstalling": { zh: "[node] 正在安装中文翻译节点（含本地翻译模型依赖，首次较慢）…", en: "[node] Installing the translation node (includes local translation model, slower on first run)…" },
+  "store.log.nodeTranslateFailed": { zh: "[node] 中文翻译节点安装失败: {msg}", en: "[node] Translation node install failed: {msg}" },
+  "store.log.modelDone": { zh: "[model] 下载完成「{name}」", en: "[model] Download complete \"{name}\"" },
+  "store.log.modelDoneFailed": { zh: "[model] 下载失败「{name}」: {msg}", en: "[model] Download \"{name}\" failed: {msg}" },
+  "console.log.gpuFailed": { zh: "[console] GPU 检测失败: {msg}", en: "[console] GPU detection failed: {msg}" },
+  "console.log.systemFailed": { zh: "[console] 系统检测失败: {msg}", en: "[console] System detection failed: {msg}" },
+  "console.log.initFailed": { zh: "[console] 检测初始化失败: {msg}", en: "[console] Detection init failed: {msg}" },
+
+  // 启动引导
+  "boot.msg.checking": { zh: "正在检查是否已安装 ComfyUI...", en: "Checking if ComfyUI is installed..." },
+  "boot.msg.found": { zh: "发现已安装记录 {dir}，正在验证...", en: "Found install record {dir}, verifying..." },
+  "boot.log.startProbe": { zh: "[auto:boot] 启动已安装环境探测", en: "[auto:boot] Start probing installed environment" },
+  "boot.log.previewMode": { zh: "[auto:boot] 浏览器预览模式，无 Tauri invoke 可用 → 走流程页面", en: "[auto:boot] Browser preview mode, no Tauri invoke → go to flow page" },
+  "boot.log.foundInstalled": { zh: "[auto] 检测到已安装环境 {dir}，直接进入管理器（torch={torch}）", en: "[auto] Detected installed environment {dir}, going to manager (torch={torch})" },
+  "boot.log.fallback": { zh: "[auto:boot] 未稳定拿到已安装探测结果，正在走本地目录兜底...", en: "[auto:boot] No stable probe result, falling back to local directory..." },
+  "boot.torchUnknown": { zh: "未检测到", en: "not detected" },
+  "welcome.log.dirFailed": { zh: "[warn] 默认目录检测失败: {msg}", en: "[warn] Default directory detection failed: {msg}" },
+  "welcome.log.foundInstalled": { zh: "[auto:Welcome] 检测到已安装环境 {dir}，直接进入管理器", en: "[auto:Welcome] Detected installed environment {dir}, going to manager" },
+};
+
+export function translate(lang: Lang, key: string, vars?: Record<string, string | number>): string {
+  const entry = MESSAGES[key];
+  let msg = entry ? entry[lang] ?? entry.zh : key;
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) {
+      msg = msg.split(`{${k}}`).join(String(v));
+    }
+  }
+  return msg;
+}
+
+export function useT(): TFunc {
+  const lang = useI18n((s) => s.lang);
+  return (key, vars) => translate(lang, key, vars);
+}
+
+// Rust 后端通过 install_log / model_download_done 推送的日志为中文。
+// 英文环境下在这里做「中文片段 → 英文」的子串替换（动态部分如 GPU 名/版本号原样保留）。
+const BACKEND_LOG_ZH_TO_EN: Array<[string, string]> = [
+  // python
+  ["正在检测系统 Python 环境...（优先 py launcher 3.12/3.11/3.10，后 python/python3）", "Detecting system Python... (py launcher 3.12/3.11/3.10 first, then python/python3)"],
+  ["未检测到兼容 Python，下一步将自动下载便携版 Python 3.10", "No compatible Python detected; will auto-download portable Python 3.10 next"],
+  ["（跳过，可能是 Store stub 或版本 <3.10/>3.12）", " (skip, may be Store stub or version <3.10/>3.12)"],
+  ["✅ 已存在兼容 Python，跳过下载", "✅ Compatible Python exists, skip download"],
+  ["✅ 已存在便携版 Python ", "✅ Portable Python found: "],
+  ["未命中 ", "No match "],
+  ["命中 ", "Matched "],
+  [" 兼容=", " compatible="],
+  ["（跳过）", " (skip)"],
+  [", 跳过下载", ", skip download"],
+
+  // gpu
+  ["正在检测显卡（nvidia-smi）...", "Detecting GPU (nvidia-smi)..."],
+  ["检测到 GPU: ", "Detected GPU: "],
+  ["利用率 ", "utilization "],
+  ["nvidia-smi 不可用: ", "nvidia-smi unavailable: "],
+  ["未检测到 NVIDIA GPU，将使用 CPU 模式（速度较慢）", "No NVIDIA GPU detected, will use CPU mode (slower)"],
+
+  // system
+  ["正在检测 Windows 系统...", "Detecting Windows system..."],
+  ["检测完成：", "Detection complete: "],
+  [" 核 ", " cores "],
+
+  // pytorch
+  ["正在安装 PyTorch（根据显卡匹配版本，耐心等待）...", "Installing PyTorch (matched to GPU, please wait)..."],
+  ["⏱ 预计耗时 5~30 分钟（torch/torchvision/torchaudio 合计约 2.3GB，下载慢属正常）", "⏱ Estimated 5~30 min (torch/torchvision/torchaudio ~2.3GB total, slow download is normal)"],
+  [" 已安装且兼容，跳过", " installed & compatible, skip"],
+  ["检测到旧版/不兼容 PyTorch ", "Detected old/incompatible PyTorch "],
+  ["（custom_op=", " (custom_op="],
+  ["），将升级到 ", "), will upgrade to "],
+  ["PyTorch 安装完成", "PyTorch install complete"],
+
+  // docker
+  ["检查 Docker 环境...", "Checking Docker environment..."],
+  ["Docker 已安装: ", "Docker installed: "],
+  ["未检测到 Docker，请先安装 Docker Desktop + WSL2", "Docker not detected, install Docker Desktop + WSL2 first"],
+  ["Docker daemon 运行中", "Docker daemon running"],
+  ["Docker daemon 未启动，请先启动 Docker Desktop", "Docker daemon not running, start Docker Desktop first"],
+  ["准备目录: ", "Preparing directory: "],
+  ["✅ docker-compose.yml 已存在（", "✅ docker-compose.yml exists ("],
+  ["），跳过重写", "), skip rewrite"],
+  ["已生成 docker-compose.yml + 启动/停止 bat", "Generated docker-compose.yml + start/stop bat"],
+  ["已写入 ", "Written "],
+  ["✅ ComfyUI 镜像已存在，跳过 pull", "✅ ComfyUI image exists, skip pull"],
+  ["拉取镜像（首次会比较慢）...", "Pulling image (first time is slow)..."],
+  ["✅ ComfyUI 容器已处于运行状态，跳过 compose up", "✅ ComfyUI container already running, skip compose up"],
+  ["启动容器（docker compose up -d）...", "Starting container (docker compose up -d)..."],
+  ["✅ ComfyUI 容器已在后台启动，约 30 秒内服务会就绪", "✅ ComfyUI container started in background, ready in ~30s"],
+
+  // installer steps
+  ["启动器和环境配置已写入", "Launcher and environment config written"],
+  ["未知安装步骤：", "Unknown install step: "],
+  ["正在创建虚拟环境...", "Creating virtual environment..."],
+  ["✅ 虚拟环境已存在，跳过创建", "✅ Virtual environment exists, skip creation"],
+  ["pip 加速源写入 ", "pip mirror written to "],
+  ["虚拟环境创建完成", "Virtual environment created"],
+  ["✅ 核心依赖（numpy/Pillow/torch/aiohttp/transformers）已安装，跳过", "✅ Core deps (numpy/Pillow/torch/aiohttp/transformers) installed, skip"],
+  ["正在安装 ComfyUI 依赖（使用配置加速源）...", "Installing ComfyUI dependencies (using configured mirror)..."],
+  ["⏱ 预计耗时 2~10 分钟（约 200~500 个 Python 小包）", "⏱ Estimated 2~10 min (~200~500 small Python packages)"],
+  ["ComfyUI 依赖安装完成", "ComfyUI dependencies installed"],
+  ["创建工作流目录失败: ", "Failed to create workflow dir: "],
+  ["写入文生图工作流失败: ", "Failed to write text-to-image workflow: "],
+  ["✅ 已预置工作流：文生图-基础", "✅ Preset workflow: text-to-image (basic)"],
+  ["写入文生视频工作流失败: ", "Failed to write text-to-video workflow: "],
+  ["✅ 已预置工作流：文生视频-Wan2.1（需 ≥16GB 显存）", "✅ Preset workflow: text-to-video Wan2.1 (≥16GB VRAM required)"],
+
+  // config
+  ["配置文件已写入 ", "Config written to "],
+
+  // models download errors
+  ["启动下载失败: ", "Failed to start download: "],
+  ["清理旧文件失败: ", "Failed to clean old file: "],
+  ["保存文件失败: ", "Failed to save file: "],
+  ["curl 退出码: ", "curl exit code: "],
+  ["下载进程异常: ", "Download process error: "],
+
+  // diagnostics: detect_host / detect_docker (CheckItem label/message/detail)
+  ["未检测到 NVIDIA 显卡，将使用 CPU", "No NVIDIA GPU detected, will use CPU"],
+  ["无法读取显卡信息（nvidia-smi 不可用）", "Cannot read GPU info (nvidia-smi unavailable)"],
+  ["无法读取显卡信息", "Cannot read GPU info"],
+  ["未检测到 NVIDIA 显卡", "No NVIDIA GPU detected"],
+  ["ComfyUI 主程序存在", "ComfyUI main program exists"],
+  ["未找到 ComfyUI 主程序 main.py", "ComfyUI main.py not found"],
+  ["期望位置：", "Expected location: "],
+  ["ComfyUI 核心文件缺失", "ComfyUI core files missing"],
+  ["核心文件完整", "Core files complete"],
+  ["缺少 folder_paths.py / comfy 包，可能是不完整安装", "Missing folder_paths.py / comfy package; possibly incomplete install"],
+  ["未找到虚拟环境 Python", "Virtual env Python not found"],
+  ["Python 无法正常运行", "Python cannot run"],
+  [" 版本不兼容（需 3.10~3.12）", " version incompatible (requires 3.10~3.12)"],
+  [" 版本兼容", " version compatible"],
+  ["PyTorch 已启用 CUDA 加速", "PyTorch CUDA acceleration enabled"],
+  ["PyTorch 未启用 CUDA，将以 CPU 模式运行（速度较慢）", "PyTorch CUDA disabled, will run in CPU mode (slower)"],
+  ["PyTorch 未安装或无法导入", "PyTorch not installed or cannot import"],
+  ["无法判断 CUDA（依赖 PyTorch）", "Cannot determine CUDA (depends on PyTorch)"],
+  [" · ComfyUI 服务运行中", " · ComfyUI service running"],
+  [" 被其他程序占用", " used by another program"],
+  [" 空闲", " free"],
+  ["模型目录为空，尚未放置模型", "Models directory empty, no models placed yet"],
+  ["模型目录已就绪", "Models directory ready"],
+  ["模型目录不存在", "Models directory does not exist"],
+  ["工作流目录已就绪", "Workflows directory ready"],
+  ["工作流目录不存在", "Workflows directory does not exist"],
+  ["启动配置已写入", "Launch config written"],
+  ["缺少启动配置（launcher/config.json）", "Missing launch config (launcher/config.json)"],
+  ["缺少启动配置", "Missing launch config"],
+  ["Docker 未运行（请启动 Docker Desktop）", "Docker not running (start Docker Desktop)"],
+  ["Docker 正在运行", "Docker running"],
+  ["未检测到 Docker", "Docker not detected"],
+  ["docker-compose.yml 已就绪", "docker-compose.yml ready"],
+  ["缺少 docker-compose.yml", "docker-compose.yml missing"],
+  [" 已安装", " installed"],
+  ["Docker 服务", "Docker service"],
+  ["compose 配置", "compose config"],
+  ["核心文件", "Core files"],
+  ["显卡", "GPU"],
+  ["端口", "Port"],
+  ["模型", "Models"],
+  ["工作流", "Workflows"],
+  ["启动配置", "Launch config"],
+
+  // repair: RepairStep label/message
+  ["ComfyUI 主程序缺失，无法自动生成启动脚本（需重新安装）", "ComfyUI main program missing, cannot auto-generate launch script (reinstall required)"],
+  ["ComfyUI 主程序缺失，无法自动生成配置（需重新安装）", "ComfyUI main program missing, cannot auto-generate config (reinstall required)"],
+  ["ComfyUI 主程序缺失，跳过依赖检查", "ComfyUI main program missing, skip dependency check"],
+  ["PyTorch 未安装或无法导入，ComfyUI 将无法启动（需重新安装依赖）", "PyTorch not installed or cannot import, ComfyUI cannot start (reinstall dependencies)"],
+  ["未找到虚拟环境 Python，无法验证依赖（需重新安装）", "Virtual env Python not found, cannot verify dependencies (reinstall required)"],
+  ["启动脚本已存在，无需修复", "Launch script exists, no repair needed"],
+  ["启动配置已存在，无需修复", "Launch config exists, no repair needed"],
+  ["启动配置写入失败: ", "Launch config write failed: "],
+  ["启动脚本已写入 ", "Launch script written "],
+  ["数据目录已就绪", "Data directory ready"],
+  ["必要目录已就绪", "Required directories ready"],
+  ["部分目录创建失败", "Some directories failed to create"],
+  ["验证通过：错误 ", "Verification passed: "],
+  [" 项错误无法自动修复（需手动处理或重新安装），警告 ", " errors cannot be auto-fixed (manual or reinstall), "],
+  ["仍有 ", "Still "],
+  ["，警告 ", ", warnings "],
+  [" 已就绪（", " ready ("],
+  [" 模式）", " mode)"],
+  ["正在处理...", "Processing..."],
+  ["创建数据目录", "Create data directory"],
+  ["修复启动配置", "Repair launch config"],
+  ["重新检测验证", "Re-detect & verify"],
+  ["创建必要目录", "Create required directories"],
+  ["修复启动脚本", "Repair launch script"],
+  ["检查运行依赖", "Check runtime dependencies"],
+];
+
+export function localizeBackendLog(line: string, lang: Lang): string {
+  if (lang !== "en") return line;
+  let out = line;
+  // 先替换更长的中文片段，避免短片段（如“启动配置”）抢先命中长句（如“启动配置已写入”）
+  const sorted = [...BACKEND_LOG_ZH_TO_EN].sort((a, b) => b[0].length - a[0].length);
+  for (const [zh, en] of sorted) {
+    out = out.split(zh).join(en);
+  }
+  return out;
+}
