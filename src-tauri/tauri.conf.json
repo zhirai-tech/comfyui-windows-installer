@@ -41,7 +41,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ5QzMzRjlFOENGMEYyRDEKUldUUjh2Q01uai9EU2NkWVhITjNJQTVTWFczQ1E5WGRSNlc3Sko4S2dhY1o2RWxiaTgzSllEb1cK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM0MUMxRDUwQTQxQjc2RDMKUldUVGRodWtVQjBjTklXOHJPeWpyWWtmRzJIY3VLR3lDMG1OcDdqQUZWZ3Z2NjEvVllqOHEvMkoK",
       "endpoints": [
         "https://github.com/zhirai-tech/comfyui-installer/releases/latest/download/latest.json"
       ],
