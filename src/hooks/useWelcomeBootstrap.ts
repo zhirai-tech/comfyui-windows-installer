@@ -3,6 +3,7 @@ import { useInstallerStore } from "../store/installerStore";
 import { reportDebug } from "../lib/debug";
 import { buildVersionsConfig } from "../lib/versions";
 import localVersions from "../../config/versions.json";
+import { invoke } from "../lib/rpc";
 import { translate, useI18n } from "../lib/i18n";
 
 export function useWelcomeBootstrap() {
@@ -43,15 +44,11 @@ export function useWelcomeBootstrap() {
       applyVersionConfig(comfyuiVersionMode, comfyuiVersionRef, localVersions);
 
       try {
-        const mod = await import("@tauri-apps/api/core").catch(() => null);
-        const invoke: any = mod?.invoke;
-        if (invoke) {
-          try {
-            const def: string = await invoke("pick_default_install_dir");
-            if (def) setInstallDir(def);
-          } catch (e) {
-            appendLog(tr("welcome.log.dirFailed", { msg: String(e) }));
-          }
+        try {
+          const def: string = await invoke("pick_default_install_dir");
+          if (def) setInstallDir(def);
+        } catch (e) {
+          appendLog(tr("welcome.log.dirFailed", { msg: String(e) }));
         }
       } catch {}
 
@@ -59,13 +56,6 @@ export function useWelcomeBootstrap() {
         const st = useInstallerStore.getState();
         if (typeof st.refreshService === "function") {
           try { await st.refreshService().catch(() => void 0); } catch {}
-        }
-
-        const mod = await import("@tauri-apps/api/core").catch(() => null);
-        const invoke: any = mod?.invoke;
-        if (!invoke) {
-          if (!canceled) setLoading(false);
-          return;
         }
 
         const persisted = (() => {
@@ -87,7 +77,19 @@ export function useWelcomeBootstrap() {
           // #endregion
           if (!canceled && probe?.installed) {
             st.setInstallDir(probe.install_dir);
-            st.setInstallMode(probe.install_mode === "docker" ? "docker" : "host");
+            st.setInstallMode(
+              probe.install_mode === "docker"
+                ? "docker"
+                : probe.install_mode === "desktop"
+                  ? "desktop"
+                  : "host"
+            );
+            const kind: any = probe.install_kind;
+            st.setDetectedKind(
+              kind === "managed" || kind === "desktop" || kind === "portable" || kind === "docker"
+                ? kind
+                : "none"
+            );
             if (probe.config?.comfyui_dir) st.setComfyuiDir(probe.config.comfyui_dir);
             if (probe.config?.python_exe) st.setPythonExe(probe.config.python_exe);
             try { localStorage.setItem("installDir", probe.install_dir); } catch {}

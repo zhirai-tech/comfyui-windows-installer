@@ -38,6 +38,7 @@ export interface RemoteWorkflow {
   graph: Record<string, unknown> | null;
   minVramGb?: number | null;
   gpuHint?: { zh: string; en: string } | null;
+  thumbnail?: string | null;
 }
 
 export interface RemoteAnnouncement {
@@ -175,6 +176,7 @@ function toWorkflows(remote: RemoteWorkflow[] | undefined): PresetWorkflow[] {
       graph: (w.graph ?? local?.graph ?? null) as Record<string, unknown>,
       minVramGb: w.minVramGb ?? local?.minVramGb,
       gpuHint: (w.gpuHint as LocalizedText | undefined) ?? local?.gpuHint,
+      thumbnail: w.thumbnail ?? local?.thumbnail ?? null,
     };
   });
   // 追加本地有、远程没有的工作流（本地新增尚未同步到远程数据库时仍可见）

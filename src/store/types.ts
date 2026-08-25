@@ -8,8 +8,11 @@ export type Page =
   | "settings"
   | "manage";
 
-export type InstallMode = "host" | "docker";
+export type InstallMode = "host" | "docker" | "desktop";
 export type ComfyuiVersionMode = "latest" | "custom";
+
+/** 启动检测到的 ComfyUI 版本类型（区别于用户主动选择的安装方式 installMode） */
+export type DetectedKind = "none" | "managed" | "desktop" | "portable" | "docker";
 
 export type ServiceStatus =
   | "unknown"
@@ -196,6 +199,8 @@ export interface BlueprintInfo {
   category: string;
   node_types: string[];
   models: BlueprintModel[];
+  thumbnail?: string | null;
+  download_url?: string | null;
 }
 
 export interface WorkflowAnalysis {
@@ -213,8 +218,16 @@ export interface InstallerStore {
   page: Page;
   go: (p: Page) => void;
 
+  /** 本地执行器是否在线（/api/health 可达）。纯 Web 下默认 false，需按需探测。 */
+  executorOnline: boolean;
+  executorChecked: boolean;
+  checkExecutor: () => Promise<boolean>;
+
   installMode: InstallMode;
   setInstallMode: (m: InstallMode) => void;
+
+  detectedKind: DetectedKind;
+  setDetectedKind: (k: DetectedKind) => void;
 
   comfyuiVersionMode: ComfyuiVersionMode;
   comfyuiVersionRef: string;

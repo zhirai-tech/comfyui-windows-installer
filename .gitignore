@@ -6,6 +6,9 @@ dist/
 src-tauri/target/
 src-tauri/gen/
 
+# Release artifacts
+publish/
+
 # Tauri updater signing keys (private key must never be committed)
 src-tauri/.tauri/
 更新签名密钥备份.txt

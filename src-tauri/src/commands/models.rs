@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::process::Command;
-use tauri::{AppHandle, Emitter};
 
 use super::SilentCommand;
 
@@ -52,9 +51,7 @@ fn get_content_length(url: &str) -> Option<u64> {
     result
 }
 
-#[tauri::command]
 pub fn download_model(
-    app: AppHandle,
     install_dir: String,
     category: String,
     file_name: String,
@@ -87,7 +84,7 @@ pub fn download_model(
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
-                let _ = app.emit(
+                crate::events::emit(
                     "model_download_done",
                     serde_json::json!({
                         "file_name": file_name.clone(),
@@ -120,7 +117,7 @@ pub fn download_model(
                     } else {
                         error = format!("curl 退出码: {}", status.code().unwrap_or(-1));
                     }
-                    let _ = app.emit(
+                    crate::events::emit(
                         "model_download_done",
                         serde_json::json!({
                             "file_name": file_name.clone(),
@@ -132,7 +129,7 @@ pub fn download_model(
                 }
                 Ok(None) => {
                     let downloaded = std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
-                    let _ = app.emit(
+                    crate::events::emit(
                         "model_download_progress",
                         serde_json::json!({
                             "file_name": file_name.clone(),
@@ -143,7 +140,7 @@ pub fn download_model(
                     std::thread::sleep(std::time::Duration::from_millis(500));
                 }
                 Err(e) => {
-                    let _ = app.emit(
+                    crate::events::emit(
                         "model_download_done",
                         serde_json::json!({
                             "file_name": file_name.clone(),
@@ -160,7 +157,6 @@ pub fn download_model(
     Ok(())
 }
 
-#[tauri::command]
 pub fn delete_model(
     install_dir: String,
     category: String,

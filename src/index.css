@@ -50,3 +50,16 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   font-size: 12px;
   line-height: 1.5;
 }
+
+.announcement-marquee {
+  animation: announcement-marquee 14s linear infinite;
+}
+
+@keyframes announcement-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}

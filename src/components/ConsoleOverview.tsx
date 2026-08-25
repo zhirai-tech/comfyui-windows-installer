@@ -14,6 +14,7 @@ import {
 import { useInstallerStore } from "../store/installerStore";
 import { HardwareGauges } from "./HardwareGauges";
 import { useT } from "../lib/i18n";
+import { invoke } from "../lib/rpc";
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -115,10 +116,9 @@ export function ConsoleOverview({
     let canceled = false;
     (async () => {
       try {
-        const mod = await import("@tauri-apps/api/core");
         if (!gpuInfo) {
           try {
-            const g: any = await mod.invoke("detect_gpu");
+            const g: any = await invoke("detect_gpu");
             if (g?.gpu_name || g?.has_nvidia !== undefined) setGpuInfo(g);
           } catch (e) {
             appendLog(t("console.log.gpuFailed", { msg: String(e) }));
@@ -126,7 +126,7 @@ export function ConsoleOverview({
         }
         // 系统信息（含磁盘）依赖安装目录，进入控制台时始终按当前 installDir 重新检测
         try {
-          const s: any = await mod.invoke("detect_system", { installDir });
+          const s: any = await invoke("detect_system", { installDir });
           if (s) setSystemInfo(s);
         } catch (e) {
           appendLog(t("console.log.systemFailed", { msg: String(e) }));

@@ -9,6 +9,7 @@ import { onDragRegionMouseDown } from "./lib/window";
 import { TitleBar } from "./components/TitleBar";
 import { useT } from "./lib/i18n";
 import { ContactModal } from "./components/ContactModal";
+import { InstallModal } from "./components/InstallModal";
 import Welcome from "./pages/Welcome";
 import Detect from "./pages/Detect";
 import Install from "./pages/Install";
@@ -247,6 +248,7 @@ function App() {
       </div>
 
       {contactOpen && <ContactModal onClose={() => setContactOpen(false)} />}
+      <InstallModal />
     </div>
   );
 }

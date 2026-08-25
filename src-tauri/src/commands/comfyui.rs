@@ -1,21 +1,18 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Stdio;
-use tauri::Emitter;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DownloadResult {
     pub comfyui_dir: String,
 }
 
-#[tauri::command]
 pub async fn download_comfyui(
-    app: tauri::AppHandle,
     install_dir: String,
     versions_config: serde_json::Value,
 ) -> Result<DownloadResult, String> {
     let emit = |msg: &str| {
-        let _ = app.emit("install_log", format!("[comfyui] {}", msg));
+        crate::events::log("comfyui", msg);
     };
 
     let target = PathBuf::from(&install_dir).join("ComfyUI");

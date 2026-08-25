@@ -3,6 +3,8 @@ import { useInstallerStore } from "../store/installerStore";
 import { ModeCard } from "../components/ModeCard";
 import { useWelcomeBootstrap } from "../hooks/useWelcomeBootstrap";
 import { useT } from "../lib/i18n";
+import { openExternal } from "../lib/window";
+import { invoke } from "../lib/rpc";
 
 export default function Welcome() {
   const t = useT();
@@ -19,7 +21,6 @@ export default function Welcome() {
 
   const validate = async (v: string) => {
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       await invoke("validate_install_dir", { path: v });
       setInstallDirError(null);
     } catch (e: any) {
@@ -28,6 +29,10 @@ export default function Welcome() {
   };
 
   const continueNext = () => {
+    if (installMode === "desktop") {
+      void openExternal("https://www.comfy.org/download");
+      return;
+    }
     applyVersionConfig("latest", "master");
     if (hasExisting && installMode === "host") {
       go("manage");
@@ -64,7 +69,12 @@ export default function Welcome() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-shrink-0">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 flex-shrink-0">
+        <ModeCard
+          mode="desktop"
+          active={installMode === "desktop"}
+          onClick={() => setInstallMode("desktop")}
+        />
         <ModeCard
           mode="host"
           active={installMode === "host"}
@@ -118,7 +128,9 @@ export default function Welcome() {
             />
             {installMode === "docker"
               ? t("welcome.nextDocker")
-              : t("welcome.nextHost")}
+              : installMode === "desktop"
+                ? t("welcome.nextDesktop")
+                : t("welcome.nextHost")}
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

@@ -1,44 +1,58 @@
-import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, MonitorPlay, XCircle } from "lucide-react";
 import { DockerIcon, GpuHostIcon } from "./BrandIcons";
 import { useT } from "../lib/i18n";
+
+export type ModeCardKind = "host" | "docker" | "desktop";
 
 export function ModeCard({
   mode,
   active,
   onClick,
 }: {
-  mode: "host" | "docker";
+  mode: ModeCardKind;
   active: boolean;
   onClick: () => void;
 }) {
   const t = useT();
   const host = mode === "host";
+  const desktop = mode === "desktop";
+
+  const activeCls = active
+    ? host
+      ? "border-brand-500 dark:bg-brand-500/5 bg-brand-50 shadow-[0_0_0_1px_rgba(59,130,246,0.3)]"
+      : desktop
+        ? "border-sky-500 dark:bg-sky-500/5 bg-sky-50 shadow-[0_0_0_1px_rgba(14,165,233,0.3)]"
+        : "border-violet-500 dark:bg-violet-500/5 bg-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.3)]"
+    : "dark:border-slate-800 border-slate-300 dark:bg-slate-900/60 bg-white/80 dark:hover:border-slate-600 hover:border-slate-400";
+
+  const title = t(host ? "mode.host" : desktop ? "mode.desktop" : "mode.docker");
+  const sub = t(host ? "mode.hostSub" : desktop ? "mode.desktopSub" : "mode.dockerSub");
+  const pro = t(host ? "mode.hostPro" : desktop ? "mode.desktopPro" : "mode.dockerPro");
+  const con = t(host ? "mode.hostCon" : desktop ? "mode.desktopCon" : "mode.dockerCon");
+  const not = t(host ? "mode.hostNot" : desktop ? "mode.desktopNot" : "mode.dockerNot");
+
   return (
     <button
       onClick={onClick}
-      className={`text-left rounded-xl border transition-all p-3 h-full flex flex-col items-start justify-start ${
-        active
-          ? host
-            ? "border-brand-500 dark:bg-brand-500/5 bg-brand-50 shadow-[0_0_0_1px_rgba(59,130,246,0.3)]"
-            : "border-violet-500 dark:bg-violet-500/5 bg-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.3)]"
-          : "dark:border-slate-800 border-slate-300 dark:bg-slate-900/60 bg-white/80 dark:hover:border-slate-600 hover:border-slate-400"
-      }`}
+      className={`text-left rounded-xl border transition-all p-3 h-full flex flex-col items-start justify-start ${activeCls}`}
     >
       <div className="flex items-center justify-between mb-2 w-full">
         <div className="flex items-center gap-2.5">
           <div className="flex items-center justify-center">
             {host ? (
               <GpuHostIcon className="w-11 h-11 drop-shadow-[0_2px_0_rgba(0,0,0,0.45)]" />
+            ) : desktop ? (
+              <MonitorPlay className="w-11 h-11 text-sky-500 drop-shadow-[0_2px_0_rgba(0,0,0,0.45)]" />
             ) : (
               <DockerIcon className="w-11 h-11 drop-shadow-[0_2px_0_rgba(0,0,0,0.45)]" />
             )}
           </div>
           <div>
             <div className="font-bold text-[14px] dark:text-slate-100 text-slate-900">
-              {host ? t("mode.host") : t("mode.docker")}
+              {title}
             </div>
             <div className="text-[11px] dark:text-slate-400 text-slate-600 font-medium">
-              {host ? t("mode.hostSub") : t("mode.dockerSub")}
+              {sub}
             </div>
           </div>
         </div>
@@ -47,7 +61,9 @@ export function ModeCard({
             active
               ? host
                 ? "border-brand-400 bg-brand-500"
-                : "border-violet-400 bg-violet-500"
+                : desktop
+                  ? "border-sky-400 bg-sky-500"
+                  : "border-violet-400 bg-violet-500"
               : "dark:border-slate-600 border-slate-400"
           }`}
         >
@@ -58,21 +74,15 @@ export function ModeCard({
       <div className="space-y-1 border-t dark:border-slate-800 border-slate-200 pt-2 text-[11px] w-full leading-snug">
         <div className="flex items-start gap-1.5 dark:text-emerald-300/90 text-emerald-700 font-medium">
           <CheckCircle2 className="w-3 h-3 flex-shrink-0 mt-0.5" />
-          <span className="min-w-0">
-            {host ? t("mode.hostPro") : t("mode.dockerPro")}
-          </span>
+          <span className="min-w-0">{pro}</span>
         </div>
         <div className="flex items-start gap-1.5 dark:text-amber-300/90 text-amber-700 font-medium">
           <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-          <span className="min-w-0">
-            {host ? t("mode.hostCon") : t("mode.dockerCon")}
-          </span>
+          <span className="min-w-0">{con}</span>
         </div>
         <div className="flex items-start gap-1.5 dark:text-rose-300/90 text-rose-700 font-medium">
           <XCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-          <span className="min-w-0">
-            {host ? t("mode.hostNot") : t("mode.dockerNot")}
-          </span>
+          <span className="min-w-0">{not}</span>
         </div>
 
         {host && (
@@ -86,13 +96,23 @@ export function ModeCard({
           </div>
         )}
 
-        {!host && (
+        {!host && !desktop && (
           <div className="mt-1.5 rounded-lg border dark:border-amber-500/30 border-amber-400/40 dark:bg-amber-500/5 bg-amber-50 p-2 text-[10.5px] dark:text-amber-200 text-amber-800 leading-relaxed">
             <div className="font-bold mb-0.5">{t("mode.dockerReqTitle")}</div>
             <ol className="list-decimal pl-4 space-y-0.5">
               <li>{t("mode.dockerReq1")}</li>
               <li>{t("mode.dockerReq2")}</li>
               <li>{t("mode.dockerReq3")}</li>
+            </ol>
+          </div>
+        )}
+
+        {desktop && (
+          <div className="mt-1.5 rounded-lg border dark:border-sky-500/30 border-sky-400/40 dark:bg-sky-500/5 bg-sky-50 p-2 text-[10.5px] dark:text-sky-200 text-sky-800 leading-relaxed">
+            <div className="font-bold mb-0.5">{t("mode.desktopNoteTitle")}</div>
+            <ol className="list-decimal pl-4 space-y-0.5">
+              <li>{t("mode.desktopNote1")}</li>
+              <li>{t("mode.desktopNote2")}</li>
             </ol>
           </div>
         )}

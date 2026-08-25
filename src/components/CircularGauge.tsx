@@ -35,8 +35,14 @@ export function CircularGauge({
   const stroke = TONE_STROKE[tone];
 
   return (
-    <div className="flex flex-col items-center gap-1 min-w-0" title={title}>
-      <div className="relative w-[56px] h-[56px] shrink-0">
+    <div className="flex items-center gap-1.5 min-w-0" title={title}>
+      <div className="flex flex-col justify-center min-w-0 leading-tight">
+        <div className="text-[11px] font-semibold dark:text-slate-200 text-slate-700 whitespace-nowrap">{label}</div>
+        {sub ? (
+          <div className="text-[9.5px] dark:text-slate-500 text-slate-500 tabular-nums whitespace-nowrap">{sub}</div>
+        ) : null}
+      </div>
+      <div className="relative w-[38px] h-[38px] shrink-0">
         <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
           <circle
             cx="40"
@@ -59,15 +65,11 @@ export function CircularGauge({
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[13px] font-bold tabular-nums dark:text-white text-slate-900">
+          <span className="text-[11px] font-bold tabular-nums dark:text-white text-slate-900">
             {available ? `${clamped}%` : "—"}
           </span>
         </div>
       </div>
-      <div className="text-[11px] font-semibold dark:text-slate-200 text-slate-700">{label}</div>
-      {sub ? (
-        <div className="text-[10px] dark:text-slate-500 text-slate-500 tabular-nums">{sub}</div>
-      ) : null}
     </div>
   );
 }

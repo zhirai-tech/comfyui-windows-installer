@@ -12,6 +12,7 @@ import { useEnvironmentCheck } from "../hooks/useEnvironmentCheck";
 import { useEnvironmentRepair } from "../hooks/useEnvironmentRepair";
 import { useInstallerStore } from "../store/installerStore";
 import { isTauri } from "../lib/env";
+import { invoke } from "../lib/rpc";
 import { useT, translate, useI18n, localizeBackendLog } from "../lib/i18n";
 
 interface ComfyVersionInfo {
@@ -73,7 +74,6 @@ export function EnvironmentCheck() {
     setCheckingVersion(true);
     setVersionError(null);
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const res: any = await invoke("check_comfyui_version", { installDir });
       setVersion(res ?? null);
     } catch (e: any) {
@@ -90,7 +90,6 @@ export function EnvironmentCheck() {
     setVersionError(null);
     setUpdateResult(null);
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const msg: string = await invoke("update_comfyui", { installDir });
       setUpdateResult(msg || translate(useI18n.getState().lang, "env.updateDone"));
       await checkVersion();

@@ -99,7 +99,6 @@ fn is_model_file(p: &std::path::Path) -> bool {
         .unwrap_or(false)
 }
 
-#[tauri::command]
 pub async fn scan_models(install_dir: String) -> ModelsScanResult {
     let models_root = comfyui_dir(&install_dir).join("models");
     let mut models: Vec<ModelFile> = Vec::new();
@@ -156,7 +155,6 @@ pub async fn scan_models(install_dir: String) -> ModelsScanResult {
     ModelsScanResult { models, total, categories }
 }
 
-#[tauri::command]
 pub async fn scan_nodes(install_dir: String) -> Vec<NodeInfo> {
     let nodes_root = comfyui_dir(&install_dir).join("custom_nodes");
     let mut nodes: Vec<NodeInfo> = Vec::new();
@@ -183,7 +181,6 @@ pub async fn scan_nodes(install_dir: String) -> Vec<NodeInfo> {
     nodes
 }
 
-#[tauri::command]
 pub async fn scan_workflows(install_dir: String) -> Vec<WorkflowFile> {
     let workflows_dir = comfyui_dir(&install_dir).join("user").join("default").join("workflows");
     let mut workflows: Vec<WorkflowFile> = Vec::new();
@@ -208,7 +205,6 @@ pub async fn scan_workflows(install_dir: String) -> Vec<WorkflowFile> {
     workflows
 }
 
-#[tauri::command]
 pub fn install_preset_workflow(
     install_dir: String,
     file_name: String,
@@ -232,7 +228,6 @@ pub fn install_preset_workflow(
     Ok(path.to_string_lossy().to_string())
 }
 
-#[tauri::command]
 pub fn delete_workflow(install_dir: String, file_name: String) -> Result<(), String> {
     let name = file_name.trim();
     if name.is_empty()
@@ -253,7 +248,6 @@ pub fn delete_workflow(install_dir: String, file_name: String) -> Result<(), Str
     std::fs::remove_file(&path).map_err(|e| format!("删除失败: {}", e))
 }
 
-#[tauri::command]
 pub fn install_custom_node(
     install_dir: String,
     node_name: String,
@@ -310,7 +304,6 @@ pub fn install_custom_node(
     Ok(format!("节点「{}」安装完成", name))
 }
 
-#[tauri::command]
 pub fn delete_node(install_dir: String, node_name: String) -> Result<(), String> {
     let name = node_name.trim();
     if name.is_empty()
@@ -799,7 +792,6 @@ const TRANSLATE_NODE_DIR: &str = "comfyui-translate-zh";
 
 /// 部署中文翻译节点到 custom_nodes 并安装 Python 依赖（transformers / sentencepiece）。
 /// 幂等：节点已存在时也重写源码并尝试补齐依赖。
-#[tauri::command]
 pub fn install_translate_node(install_dir: String) -> Result<String, String> {
     let custom_nodes = comfyui_dir(&install_dir).join("custom_nodes");
     let node_dir = custom_nodes.join(TRANSLATE_NODE_DIR);
@@ -995,7 +987,6 @@ fn collect_registered_node_types(install_dir: &str) -> std::collections::HashSet
 
 /// 扫描 ComfyUI 官方模板（blueprints/*.json）。
 /// 不复制、不维护，仅读取官方模板里的标题/分类/节点类型/模型依赖（含下载地址）。
-#[tauri::command]
 pub async fn scan_blueprints(install_dir: String) -> Vec<BlueprintInfo> {
     let dir = comfyui_dir(&install_dir).join("blueprints");
     let mut result: Vec<BlueprintInfo> = Vec::new();
@@ -1081,7 +1072,6 @@ pub async fn scan_blueprints(install_dir: String) -> Vec<BlueprintInfo> {
 /// 分析指定工作流（user/default/workflows/*.json）的依赖：
 /// 提取节点类型、模型引用、输入引用，并检测缺失的模型与输入文件。
 /// 节点缺失由前端结合「核心节点白名单 + 自定义节点注册表」进一步判定。
-#[tauri::command]
 pub async fn analyze_workflow(
     install_dir: String,
     file_name: String,

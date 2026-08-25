@@ -1,6 +1,5 @@
 use serde::Serialize;
 use std::path::PathBuf;
-use tauri::Emitter;
 
 use super::diagnostics::{detect_docker, detect_host, probe_torch, CheckItem};
 use super::installer::config::InstallConfig;
@@ -23,8 +22,8 @@ pub struct RepairReport {
     pub failed: usize,
 }
 
-fn emit_step(app: &tauri::AppHandle, step: &RepairStep) {
-    let _ = app.emit("repair_progress", step);
+fn emit_step(step: &RepairStep) {
+    crate::events::emit("repair_progress", step);
 }
 
 fn now_marker() -> String {
@@ -191,7 +190,6 @@ fn verify(install_dir: &str, install_mode: &str) -> String {
 }
 
 fn push_step(
-    app: &tauri::AppHandle,
     steps: &mut Vec<RepairStep>,
     index: usize,
     total: usize,
@@ -207,17 +205,15 @@ fn push_step(
         status: "running".to_string(),
         message: "正在处理...".to_string(),
     };
-    emit_step(app, &step);
+    emit_step(&step);
     let (msg, ok) = run();
     step.status = if ok { "done" } else { "failed" }.to_string();
     step.message = msg;
-    emit_step(app, &step);
+    emit_step(&step);
     steps.push(step);
 }
 
-#[tauri::command]
 pub async fn repair_environment(
-    app: tauri::AppHandle,
     install_dir: String,
     install_mode: String,
 ) -> Result<RepairReport, String> {
@@ -225,7 +221,7 @@ pub async fn repair_environment(
 
     if install_mode == "docker" {
         let total = 3;
-        push_step(&app, &mut steps, 1, total, "dirs", "创建数据目录", || {
+        push_step(&mut steps, 1, total, "dirs", "创建数据目录", || {
             let root = PathBuf::from(&install_dir);
             let mut ok = true;
             for d in ["launcher", "data/models", "data/user/default/workflows"] {
@@ -239,27 +235,27 @@ pub async fn repair_environment(
                 ("部分目录创建失败".to_string(), false)
             }
         });
-        push_step(&app, &mut steps, 2, total, "config", "修复启动配置", || {
+        push_step(&mut steps, 2, total, "config", "修复启动配置", || {
             repair_config(&install_dir)
         });
-        push_step(&app, &mut steps, 3, total, "verify", "重新检测验证", || {
+        push_step(&mut steps, 3, total, "verify", "重新检测验证", || {
             (verify(&install_dir, "docker"), true)
         });
     } else {
         let total = 5;
-        push_step(&app, &mut steps, 1, total, "dirs", "创建必要目录", || {
+        push_step(&mut steps, 1, total, "dirs", "创建必要目录", || {
             create_dirs(&install_dir)
         });
-        push_step(&app, &mut steps, 2, total, "config", "修复启动配置", || {
+        push_step(&mut steps, 2, total, "config", "修复启动配置", || {
             repair_config(&install_dir)
         });
-        push_step(&app, &mut steps, 3, total, "launcher", "修复启动脚本", || {
+        push_step(&mut steps, 3, total, "launcher", "修复启动脚本", || {
             repair_launcher(&install_dir)
         });
-        push_step(&app, &mut steps, 4, total, "deps", "检查运行依赖", || {
+        push_step(&mut steps, 4, total, "deps", "检查运行依赖", || {
             repair_deps(&install_dir)
         });
-        push_step(&app, &mut steps, 5, total, "verify", "重新检测验证", || {
+        push_step(&mut steps, 5, total, "verify", "重新检测验证", || {
             (verify(&install_dir, "host"), true)
         });
     }

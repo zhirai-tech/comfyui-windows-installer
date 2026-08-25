@@ -3,8 +3,6 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 
-use tauri::Emitter;
-
 use super::{
     chrono_now_local, config_port, debug_report, probe, write_runtime, ServiceStatus,
     SilentCommand, HOST_CHILD, CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW,
@@ -13,7 +11,6 @@ use super::precheck::run_torch_precheck;
 
 fn spawn_log_reader<S, F>(
     stream: Option<S>,
-    app: tauri::AppHandle,
     tag: &'static str,
     service_prefix: &'static str,
     emit: F,
@@ -35,7 +32,7 @@ fn spawn_log_reader<S, F>(
                             if line.trim().is_empty() {
                                 continue;
                             }
-                            let _ = app.emit("install_log", format!("[{}] {}", tag, line));
+                            crate::events::log(tag, &line);
                             emit(&format!("{}: {}", service_prefix, line));
                             let mut g = recent.lock().unwrap();
                             g.push(line);
@@ -52,15 +49,12 @@ fn spawn_log_reader<S, F>(
     });
 }
 
-#[tauri::command]
 pub async fn start_service(
-    app: tauri::AppHandle,
     install_dir: String,
     install_mode: String,
 ) -> Result<ServiceStatus, String> {
-    let app_emit = app.clone();
     let emit = move |m: &str| {
-        let _ = app_emit.emit("install_log", format!("[service] {}", m));
+        crate::events::log("service", m);
     };
     let port = config_port(&install_dir);
     let url = format!("http://127.0.0.1:{}", port);
@@ -186,8 +180,8 @@ pub async fn start_service(
     // stdout/stderr 读取线程（tail 60 条缓存，崩溃时塞进 Err 让前端看到真实报错）
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
-    spawn_log_reader(stdout, app.clone(), "comfyui", "stdout", emit.clone(), recent_log.clone());
-    spawn_log_reader(stderr, app.clone(), "comfyui:err", "stderr", emit.clone(), recent_log.clone());
+    spawn_log_reader(stdout, "comfyui", "stdout", emit.clone(), recent_log.clone());
+    spawn_log_reader(stderr, "comfyui:err", "stderr", emit.clone(), recent_log.clone());
 
     {
         let mut g = HOST_CHILD.lock().unwrap();

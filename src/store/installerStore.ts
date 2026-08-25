@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { isTauri } from "../lib/env";
+import { invoke } from "../lib/rpc";
 import { translate, useI18n } from "../lib/i18n";
 import type { InstallerStore, ServiceStatus, StepState } from "./types";
 
@@ -26,14 +27,34 @@ const DOCKER_STEPS: StepState[] = [
 ];
 
 export const useInstallerStore = create<InstallerStore>((set, get) => ({
-  page: "welcome",
+  page: "manage",
   go: (p) => set({ page: p }),
+
+  executorOnline: false,
+  executorChecked: false,
+  checkExecutor: async () => {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 1500);
+      const res = await fetch("/api/health", { signal: ctrl.signal });
+      clearTimeout(t);
+      const ok = res.ok;
+      set({ executorOnline: ok, executorChecked: true });
+      return ok;
+    } catch {
+      set({ executorOnline: false, executorChecked: true });
+      return false;
+    }
+  },
 
   installMode: "host",
   setInstallMode: (m) => {
     set({ installMode: m });
     get().rebuildStepsForMode();
   },
+
+  detectedKind: "none",
+  setDetectedKind: (k) => set({ detectedKind: k }),
 
   comfyuiVersionMode: (() => {
     try {
@@ -112,7 +133,6 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
     const { installDir } = get();
     if (!installDir || !isTauri()) return;
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const cfg: any = await invoke("read_install_config", { installDir });
       if (cfg) {
         set({
@@ -131,7 +151,6 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
     if (!installDir) return tr("store.noInstallDir");
     if (!isTauri()) return tr("store.previewNoConfig");
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       await invoke("update_install_config", { installDir, port, launchArgs });
       set({ configPort: port, launchArgs });
       get().appendLog(tr("store.log.configSaved", { port }));
@@ -150,7 +169,7 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
 
   rebuildStepsForMode: () => {
     const m = get().installMode;
-    const base = m === "host" ? HOST_STEPS : DOCKER_STEPS;
+    const base = m === "host" ? HOST_STEPS : m === "docker" ? DOCKER_STEPS : [];
     set({ steps: base.map((s) => ({ ...s })), overallPercent: 0 });
   },
 
@@ -214,11 +233,10 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
       return;
     }
     try {
-      const mod = await import("@tauri-apps/api/core");
       const currInstallDir = get().installDir;
       const currInstallMode = get().installMode;
       const prevService = get().service;
-      const res: any = await mod.invoke("get_service_status", {
+      const res: any = await invoke("get_service_status", {
         installDir: currInstallDir,
         installMode: currInstallMode,
       });
@@ -263,8 +281,7 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
       return;
     }
     try {
-      const mod = await import("@tauri-apps/api/core");
-      const res: any = await mod.invoke("detect_environment", {
+      const res: any = await invoke("detect_environment", {
         installDir,
         installMode,
       });
@@ -307,11 +324,10 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
       return;
     }
     try {
-      const mod = await import("@tauri-apps/api/core");
       const [modelsRes, nodesRes, workflowsRes]: any[] = await Promise.all([
-        mod.invoke("scan_models", { installDir }),
-        mod.invoke("scan_nodes", { installDir }),
-        mod.invoke("scan_workflows", { installDir }),
+        invoke("scan_models", { installDir }),
+        invoke("scan_nodes", { installDir }),
+        invoke("scan_workflows", { installDir }),
       ]);
       set({
         models: modelsRes?.models ?? [],
@@ -335,8 +351,7 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
     if (!installDir || !isTauri()) return;
     set({ blueprintsScanning: true });
     try {
-      const mod = await import("@tauri-apps/api/core");
-      const res: any = await mod.invoke("scan_blueprints", { installDir });
+      const res: any = await invoke("scan_blueprints", { installDir });
       set({ blueprints: res ?? [] });
     } catch (e: any) {
       const msg = typeof e === "string" ? e : e?.toString?.() ?? tr("store.scanFailed");
@@ -357,8 +372,7 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
     }
     set({ diagnosisLoading: true, diagnosisError: null, diagnosis: null });
     try {
-      const mod = await import("@tauri-apps/api/core");
-      const res: any = await mod.invoke("analyze_workflow", { installDir, fileName });
+      const res: any = await invoke("analyze_workflow", { installDir, fileName });
       set({ diagnosis: res ?? null });
     } catch (e: any) {
       const msg = typeof e === "string" ? e : e?.toString?.() ?? tr("store.scanFailed");
@@ -395,7 +409,6 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
     }));
     get().appendLog(tr("store.log.modelStart", { name: fileName }));
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       await invoke("download_model", { installDir, category, fileName, url });
     } catch (e: any) {
       const msg = typeof e === "string" ? e : e?.toString?.() ?? tr("store.downloadFailed");
@@ -415,7 +428,6 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
       return;
     }
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       await invoke("delete_model", { installDir, category, fileName });
       get().appendLog(tr("store.log.modelDeleted", { name: fileName }));
       await get().runScanResources();
@@ -432,7 +444,6 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
       throw new Error(tr("store.previewNoDeleteNode"));
     }
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       await invoke("delete_node", { installDir, nodeName });
       get().appendLog(tr("store.log.nodeDeleted", { name: nodeName }));
       await get().runScanResources();
@@ -449,7 +460,6 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
       return;
     }
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       get().appendLog(tr("store.log.nodeTranslateInstalling"));
       const r: string = await invoke("install_translate_node", { installDir });
       get().appendLog(`[node] ${r}`);
@@ -502,7 +512,8 @@ export const useInstallerStore = create<InstallerStore>((set, get) => ({
   setLogsOpen: (b) => set({ logsOpen: b }),
 
   resetInstall: () => {
-    const base = get().installMode === "host" ? HOST_STEPS : DOCKER_STEPS;
+    const m = get().installMode;
+    const base = m === "host" ? HOST_STEPS : m === "docker" ? DOCKER_STEPS : [];
     set({
       steps: base.map((s) => ({ ...s })),
       overallPercent: 0,

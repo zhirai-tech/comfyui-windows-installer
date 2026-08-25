@@ -1,7 +1,6 @@
 use serde::Serialize;
 use std::path::PathBuf;
 use std::process::Command;
-use tauri::Emitter;
 
 use super::gpu;
 use super::service::{config_port, probe};
@@ -553,16 +552,14 @@ where
     ));
 }
 
-#[tauri::command]
 pub async fn detect_environment(
-    app: tauri::AppHandle,
     install_dir: String,
     install_mode: String,
 ) -> Result<EnvironmentReport, String> {
     let mut items: Vec<CheckItem> = Vec::new();
     {
         let mut push = |it: CheckItem| {
-            let _ = app.emit("detect_progress", &it);
+            crate::events::emit("detect_progress", &it);
             items.push(it);
         };
         if install_mode == "docker" {
@@ -636,7 +633,6 @@ fn github_latest_commit() -> Option<(String, String)> {
     Some((sha, date))
 }
 
-#[tauri::command]
 pub fn check_comfyui_version(install_dir: String) -> Result<ComfyVersionInfo, String> {
     let comfyui_dir = PathBuf::from(&install_dir).join("ComfyUI");
     let current = git_head_sha(&comfyui_dir).unwrap_or_default();
@@ -679,7 +675,6 @@ pub fn check_comfyui_version(install_dir: String) -> Result<ComfyVersionInfo, St
     })
 }
 
-#[tauri::command]
 pub fn update_comfyui(install_dir: String) -> Result<String, String> {
     let comfyui_dir = PathBuf::from(&install_dir).join("ComfyUI");
     let out = Command::new("git")

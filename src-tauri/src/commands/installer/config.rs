@@ -2,8 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use tauri::Emitter;
-
 use super::SilentCommand;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -26,14 +24,13 @@ fn default_port() -> u32 {
     8188
 }
 
-#[tauri::command]
-pub fn write_install_config(app: tauri::AppHandle, config: InstallConfig) -> Result<(), String> {
+pub fn write_install_config(config: InstallConfig) -> Result<(), String> {
     let root = PathBuf::from(&config.install_dir).join("launcher");
     let _ = std::fs::create_dir_all(&root);
     let path = root.join("config.json");
     let data = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
     std::fs::write(&path, data).map_err(|e| e.to_string())?;
-    let _ = app.emit("install_log", format!("[config] 配置文件已写入 {}", path.display()));
+    crate::events::log("config", &format!("配置文件已写入 {}", path.display()));
 
     // 双写 marker：launcher/installed.json（安装目录内）+ APPDATA\comfyui-installer\installed.json 全局
     let marker_local = root.join("installed.json");
@@ -90,7 +87,6 @@ fn try_read_marker_at(path: &Path) -> Option<InstallMarker> {
     serde_json::from_str::<InstallMarker>(&raw).ok()
 }
 
-#[tauri::command]
 pub fn read_install_marker() -> Option<InstallMarker> {
     // 1) 优先 APPDATA 全局
     if let Some(dir) = appdata_dir() {
@@ -128,7 +124,6 @@ pub fn read_install_marker() -> Option<InstallMarker> {
     None
 }
 
-#[tauri::command]
 pub fn launch_comfyui(install_dir: String) -> Result<(), String> {
     let bat = PathBuf::from(&install_dir).join("启动 ComfyUI.bat");
     if !bat.exists() {
@@ -141,7 +136,6 @@ pub fn launch_comfyui(install_dir: String) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
 pub fn has_install_config(cfg_path: String) -> bool {
     Path::new(&cfg_path).exists()
 }
@@ -151,17 +145,46 @@ pub struct ProbeInstalledResult {
     pub installed: bool,
     pub install_dir: String,
     pub install_mode: String,
+    /// 检测到的 ComfyUI 版本类型：managed / desktop / portable / docker / none
+    pub install_kind: String,
     pub config: Option<InstallConfig>,
     pub has_venv_python: bool,
     pub has_comfyui_main: bool,
     pub torch_version: Option<String>,
 }
 
-#[tauri::command]
 pub async fn probe_any_installed(candidate_dir: String) -> ProbeInstalledResult {
+    // 检测优先级：助手自己装过的 → 官方桌面版 → 官方宿主机版 → 官方容器版
+    if let Some(r) = probe_managed(&candidate_dir) {
+        return r;
+    }
+    if let Some(r) = probe_desktop() {
+        return r;
+    }
+    if let Some(r) = probe_portable() {
+        return r;
+    }
+    if let Some(r) = probe_docker_container() {
+        return r;
+    }
+
+    ProbeInstalledResult {
+        installed: false,
+        install_dir: candidate_dir.clone(),
+        install_mode: "host".to_string(),
+        install_kind: "none".to_string(),
+        config: None,
+        has_venv_python: false,
+        has_comfyui_main: false,
+        torch_version: None,
+    }
+}
+
+// 助手自己装过的：靠 launcher/config.json marker（host / docker）
+fn probe_managed(candidate_dir: &str) -> Option<ProbeInstalledResult> {
     let mut dirs: Vec<String> = Vec::new();
     if !candidate_dir.trim().is_empty() {
-        dirs.push(candidate_dir.clone());
+        dirs.push(candidate_dir.to_string());
     }
     for drive in &["D:", "E:", "F:", "C:"] {
         if Path::new(drive).exists() {
@@ -218,29 +241,115 @@ pub async fn probe_any_installed(candidate_dir: String) -> ProbeInstalledResult 
             None
         };
 
-        return ProbeInstalledResult {
+        return Some(ProbeInstalledResult {
             installed: true,
             install_dir: dir.clone(),
             install_mode: mode.to_string(),
+            install_kind: "managed".to_string(),
             config,
             has_venv_python,
             has_comfyui_main,
             torch_version,
-        };
+        });
     }
-
-    ProbeInstalledResult {
-        installed: false,
-        install_dir: candidate_dir.clone(),
-        install_mode: "host".to_string(),
-        config: None,
-        has_venv_python: false,
-        has_comfyui_main: false,
-        torch_version: None,
-    }
+    None
 }
 
-#[tauri::command]
+// 官方桌面版：Comfy Desktop 的安装实例目录
+fn probe_desktop() -> Option<ProbeInstalledResult> {
+    let base = std::env::var_os("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .map(|p| p.join("Comfy-Desktop").join("ComfyUI-Installs"))?;
+    if !base.exists() {
+        return None;
+    }
+    let first = std::fs::read_dir(&base)
+        .ok()?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .find(|p| p.is_dir())?;
+
+    Some(ProbeInstalledResult {
+        installed: true,
+        install_dir: first.to_string_lossy().to_string(),
+        install_mode: "desktop".to_string(),
+        install_kind: "desktop".to_string(),
+        config: None,
+        has_venv_python: false,
+        has_comfyui_main: true,
+        torch_version: None,
+    })
+}
+
+// 官方宿主机版：portable 目录，或手动 clone（有 main.py 但无助手 marker）
+fn probe_portable() -> Option<ProbeInstalledResult> {
+    for drive in &["D:", "E:", "F:", "C:"] {
+        if !Path::new(drive).exists() {
+            continue;
+        }
+
+        let portable_root = PathBuf::from(drive).join("ComfyUI_windows_portable");
+        let portable_main = portable_root.join("ComfyUI").join("main.py");
+        if portable_main.exists() {
+            return Some(ProbeInstalledResult {
+                installed: true,
+                install_dir: portable_root.to_string_lossy().to_string(),
+                install_mode: "host".to_string(),
+                install_kind: "portable".to_string(),
+                config: None,
+                has_venv_python: false,
+                has_comfyui_main: true,
+                torch_version: None,
+            });
+        }
+
+        let manual_main = PathBuf::from(drive).join("ComfyUI").join("ComfyUI").join("main.py");
+        let manual_marker = PathBuf::from(drive).join("ComfyUI").join("launcher").join("config.json");
+        if manual_main.exists() && !manual_marker.exists() {
+            return Some(ProbeInstalledResult {
+                installed: true,
+                install_dir: format!("{}\\ComfyUI", drive),
+                install_mode: "host".to_string(),
+                install_kind: "portable".to_string(),
+                config: None,
+                has_venv_python: false,
+                has_comfyui_main: true,
+                torch_version: None,
+            });
+        }
+    }
+    None
+}
+
+// 官方容器版：docker 运行中的 comfyui 容器
+fn probe_docker_container() -> Option<ProbeInstalledResult> {
+    let out = Command::new("docker")
+        .args(["ps", "--format", "{{.Names}} {{.Image}}"])
+        .silent()
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let raw = String::from_utf8_lossy(&out.stdout);
+    for line in raw.lines() {
+        let lower = line.to_lowercase();
+        if lower.contains("comfyui") || lower.contains("comfy") {
+            return Some(ProbeInstalledResult {
+                installed: true,
+                install_dir: String::new(),
+                install_mode: "docker".to_string(),
+                install_kind: "docker".to_string(),
+                config: None,
+                has_venv_python: false,
+                has_comfyui_main: false,
+                torch_version: None,
+            });
+        }
+    }
+    None
+}
+
 pub fn read_install_config(install_dir: String) -> Option<InstallConfig> {
     let cfg_path = PathBuf::from(&install_dir).join("launcher").join("config.json");
     std::fs::read_to_string(&cfg_path)
@@ -248,7 +357,6 @@ pub fn read_install_config(install_dir: String) -> Option<InstallConfig> {
         .and_then(|raw| serde_json::from_str::<InstallConfig>(&raw).ok())
 }
 
-#[tauri::command]
 pub fn update_install_config(
     install_dir: String,
     port: u32,

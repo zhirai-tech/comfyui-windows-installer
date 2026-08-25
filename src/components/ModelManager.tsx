@@ -90,16 +90,19 @@ export function ModelManager() {
           >
             {t("model.tab.models")} {models.length}
           </button>
-          <button
-            onClick={() => setTab("nodes")}
-            className={`px-3 py-1 rounded-full text-[12px] font-semibold transition ${
-              tab === "nodes"
-                ? "bg-brand-500 text-white"
-                : "dark:text-slate-300 text-slate-600 hover:text-slate-900 dark:hover:text-white"
-            }`}
-          >
-            {t("model.tab.nodes")} {nodes.length}
-          </button>
+          {/* 节点 tab 已停用：节点不单独上 UI（官方节点随工作流/官方模板展示，自有节点隐藏在工作流内下发） */}
+          {false && (
+            <button
+              onClick={() => setTab("nodes")}
+              className={`px-3 py-1 rounded-full text-[12px] font-semibold transition ${
+                tab === "nodes"
+                  ? "bg-brand-500 text-white"
+                  : "dark:text-slate-300 text-slate-600 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              {t("model.tab.nodes")} {nodes.length}
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button

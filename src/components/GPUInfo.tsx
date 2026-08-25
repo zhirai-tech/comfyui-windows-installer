@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { BarChart3 } from "lucide-react";
-import type { GpuInfo, DockerInfo } from "../store/installerStore";
+import type { GpuInfo, DockerInfo, InstallMode } from "../store/installerStore";
 import {
   phaseAtLeast,
   type DetectPhase,
@@ -17,7 +17,7 @@ interface Props {
   gpuInfo: GpuInfo | null;
   pythonInfo?: PythonInfoLite | null;
   dockerInfo?: DockerInfo | null;
-  installMode?: "host" | "docker";
+  installMode?: InstallMode;
   detectPhase?: DetectPhase;
 }
 

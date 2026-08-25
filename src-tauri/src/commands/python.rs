@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use tauri::Emitter;
 use super::SilentCommand;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -117,10 +116,9 @@ fn probe_python() -> Option<PythonInfo> {
     None
 }
 
-#[tauri::command]
-pub async fn detect_python(app: tauri::AppHandle) -> Result<PythonInfo, String> {
+pub async fn detect_python() -> Result<PythonInfo, String> {
     let emit = |msg: &str| {
-        let _ = app.emit("install_log", format!("[python] {}", msg));
+        crate::events::log("python", msg);
     };
     emit("正在检测系统 Python 环境...（优先 py launcher 3.12/3.11/3.10，后 python/python3）");
 
@@ -178,14 +176,12 @@ pub struct PreparePythonResult {
     pub version: String,
 }
 
-#[tauri::command]
 pub async fn prepare_python(
-    app: tauri::AppHandle,
     install_dir: String,
     versions_config: serde_json::Value,
 ) -> Result<PreparePythonResult, String> {
     let emit = |msg: &str| {
-        let _ = app.emit("install_log", format!("[python] {}", msg));
+        crate::events::log("python", msg);
     };
 
     if let Some(p) = probe_python() {

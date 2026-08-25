@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Command;
-use tauri::Emitter;
 use super::SilentCommand;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -14,10 +13,9 @@ pub struct DockerInfo {
     pub missing_requirements: Vec<String>,
 }
 
-#[tauri::command]
-pub async fn check_docker(app: tauri::AppHandle) -> DockerInfo {
+pub async fn check_docker() -> DockerInfo {
     let emit = |m: &str| {
-        let _ = app.emit("install_log", format!("[docker] {}", m));
+        crate::events::log("docker", m);
     };
     emit("检查 Docker 环境...");
 
@@ -97,15 +95,13 @@ pub struct DockerInstallResult {
     pub data_dir: String,
 }
 
-#[tauri::command]
 pub async fn install_docker_mode(
-    app: tauri::AppHandle,
     install_dir: String,
     versions_config: serde_json::Value,
     step_phase: String,
 ) -> Result<DockerInstallResult, String> {
     let emit = |m: &str| {
-        let _ = app.emit("install_log", format!("[docker] {}", m));
+        crate::events::log("docker", m);
     };
 
     let root = PathBuf::from(&install_dir);

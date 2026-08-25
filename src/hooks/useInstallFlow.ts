@@ -4,6 +4,7 @@ import type { InstallStep } from "../store/installerStore";
 import { PRESET_WORKFLOWS } from "../lib/presetWorkflows";
 import localVersions from "../../config/versions.json";
 import { sleep } from "../lib/utils";
+import { invoke } from "../lib/rpc";
 import { useT, useLocalize } from "../lib/i18n";
 
 export function useInstallFlow() {
@@ -66,7 +67,6 @@ export function useInstallFlow() {
   };
 
   const runHostFlow = async (total: number) => {
-    const { invoke } = await import("@tauri-apps/api/core");
     let pythonExe = "";
     let comfyuiDir = "";
     const venvPython = `${installDir}\\venv\\Scripts\\python.exe`;
@@ -127,7 +127,6 @@ export function useInstallFlow() {
   };
 
   const runDockerFlow = async (total: number) => {
-    const { invoke } = await import("@tauri-apps/api/core");
 
     appendLog(t("install.log.dockerCheck", { i: 1, total }));
     await runRealStep("docker_check", async () => {
@@ -189,7 +188,6 @@ export function useInstallFlow() {
       // 预置工作流（仅宿主机版；容器版工作流目录挂载在容器内，暂不预置）
       if (installMode === "host") {
         try {
-          const { invoke } = await import("@tauri-apps/api/core");
           for (const w of presetWorkflows) {
             const content = JSON.stringify(w.graph, null, 2);
             await invoke("install_preset_workflow", {
@@ -212,7 +210,6 @@ export function useInstallFlow() {
       setServiceStatus({ status: "starting" });
 
       try {
-        const { invoke } = await import("@tauri-apps/api/core");
         if (installMode === "host") {
           await invoke("launch_comfyui", { installDir });
         }
@@ -224,7 +221,6 @@ export function useInstallFlow() {
 
       setDoneBanner("running");
       try {
-        const { invoke } = await import("@tauri-apps/api/core");
         const statusRes: any = await invoke("get_service_status", { installDir, installMode });
         setServiceStatus({
           status: statusRes?.status ?? "unknown",

@@ -1,7 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
-use tauri::Emitter;
 use super::SilentCommand;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -120,10 +119,9 @@ fn run_nvidia_cuda_version() -> Option<String> {
     None
 }
 
-#[tauri::command]
-pub async fn detect_gpu(app: tauri::AppHandle) -> Result<GpuInfo, String> {
+pub async fn detect_gpu() -> Result<GpuInfo, String> {
     let emit = |msg: &str| {
-        let _ = app.emit("install_log", format!("[gpu] {}", msg));
+        crate::events::log("gpu", msg);
     };
     emit("正在检测显卡（nvidia-smi）...");
 

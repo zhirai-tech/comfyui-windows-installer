@@ -5,7 +5,6 @@ use super::{
     config_port, debug_report, probe, read_runtime, ServiceStatus, SilentCommand,
 };
 
-#[tauri::command]
 pub async fn get_service_status(install_dir: String, install_mode: String) -> ServiceStatus {
     let port = config_port(&install_dir);
     let url = format!("http://127.0.0.1:{}", port);

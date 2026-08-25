@@ -33,6 +33,8 @@ export interface PresetWorkflow {
   minVramGb?: number;
   /** 推荐显卡级别（型号 + 显存），用于“无法运行”提示里告诉用户该换什么卡 */
   gpuHint?: LocalizedText;
+  /** 封面图/短视频 URL（外链或 /uploads/...），无则用 logo 占位 */
+  thumbnail?: string | null;
 }
 
 // 最小但结构完整的 ComfyUI 工作流（前端导出格式），可被 ComfyUI 直接打开。

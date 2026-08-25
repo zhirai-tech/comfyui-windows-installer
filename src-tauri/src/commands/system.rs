@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use sysinfo::{Disks, System};
-use tauri::Emitter;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SystemInfo {
@@ -20,13 +19,11 @@ pub struct SystemInfo {
     pub hostname: String,
 }
 
-#[tauri::command]
 pub async fn detect_system(
-    app: tauri::AppHandle,
     install_dir: Option<String>,
 ) -> Result<SystemInfo, String> {
     let emit = |msg: &str| {
-        let _ = app.emit("install_log", format!("[system] {}", msg));
+        crate::events::log("system", msg);
     };
 
     emit("正在检测 Windows 系统...");
@@ -106,7 +103,6 @@ pub async fn detect_system(
     Ok(info)
 }
 
-#[tauri::command]
 pub fn pick_default_install_dir() -> String {
     for drive in &["D:", "E:", "F:", "C:"] {
         let p = format!("{}\\ComfyUI", drive);
@@ -117,7 +113,6 @@ pub fn pick_default_install_dir() -> String {
     "C:\\ComfyUI".to_string()
 }
 
-#[tauri::command]
 pub fn validate_install_dir(path: String) -> Result<(), String> {
     if path.is_empty() {
         return Err("安装路径不能为空".to_string());
@@ -136,9 +131,27 @@ pub fn validate_install_dir(path: String) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
 pub fn prepare_results_dir(dir: String) -> Result<String, String> {
     let p = std::path::PathBuf::from(&dir);
     std::fs::create_dir_all(&p).map_err(|e| format!("创建结果目录失败: {}", e))?;
     Ok(p.to_string_lossy().to_string())
+}
+
+/// 在系统文件管理器中打开目录/文件（Web 前端无法直接打开本地路径，由执行器代开）。
+pub fn open_path(path: String) -> Result<(), String> {
+    let p = std::path::PathBuf::from(&path);
+    if !p.exists() {
+        return Err(format!("路径不存在: {}", path));
+    }
+
+    #[cfg(target_os = "windows")]
+    let _ = std::process::Command::new("explorer").arg(&path).spawn();
+
+    #[cfg(target_os = "macos")]
+    let _ = std::process::Command::new("open").arg(&path).spawn();
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let _ = std::process::Command::new("xdg-open").arg(&path).spawn();
+
+    Ok(())
 }

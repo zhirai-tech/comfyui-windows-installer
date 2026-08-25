@@ -11,6 +11,8 @@ import { useInstallerStore } from "../store/installerStore";
 import { PRESET_WORKFLOWS } from "../lib/presetWorkflows";
 import { HardwareGauges } from "../components/HardwareGauges";
 import { useT, useLocalize } from "../lib/i18n";
+import { invoke } from "../lib/rpc";
+import { openPath } from "../lib/window";
 
 export default function Complete() {
   const t = useT();
@@ -35,7 +37,6 @@ export default function Complete() {
 
   const launchAndManage = async () => {
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       setServiceStatus({ status: "starting" });
       const res: any = await invoke("start_service", {
         installDir,
@@ -57,8 +58,7 @@ export default function Complete() {
 
   const openFolder = async () => {
     try {
-      const mod = await import("@tauri-apps/plugin-shell");
-      await mod.open(installDir);
+      await openPath(installDir);
     } catch (e: any) {
       appendLog(t("complete.log.openDirFailed", { msg: e?.toString?.() ?? e }));
     }

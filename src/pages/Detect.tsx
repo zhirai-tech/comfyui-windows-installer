@@ -1,10 +1,10 @@
 import { ArrowLeft, ArrowRight, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import GPUInfo from "../components/GPUInfo";
 import { useInstallerStore } from "../store/installerStore";
-import { isTauri } from "../lib/env";
 import { sleep } from "../lib/utils";
 import { useT } from "../lib/i18n";
+import { invoke } from "../lib/rpc";
 
 import type {
   SystemInfo,
@@ -31,14 +31,12 @@ export default function Detect() {
   const [busy, setBusy] = useState(true);
   const [phase, setPhase] =
     useState<"idle" | "system" | "gpu" | "env" | "deps" | "done">("idle");
-  const envIsTauriPromise = useRef<boolean>(isTauri());
 
   const run = async () => {
     setBusy(true);
     setPhase("idle");
 
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const sys = await invoke<any>("detect_system", { installDir });
       setPhase("system");
       setSystemInfo(sys);
@@ -46,7 +44,6 @@ export default function Detect() {
       appendLog(`[error] ${t("detect.errorSystem")}: ${e}`);
     }
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const gpu = await invoke<any>("detect_gpu");
       setPhase("gpu");
       setGpuInfo(gpu);
@@ -54,7 +51,6 @@ export default function Detect() {
       appendLog(`[error] ${t("detect.errorGpu")}: ${e}`);
     }
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const py = await invoke<any>("detect_python");
       setPhase("env");
       setPythonInfo(py);
@@ -63,7 +59,6 @@ export default function Detect() {
     }
     if (installMode === "docker") {
       try {
-        const { invoke } = await import("@tauri-apps/api/core");
         const d = await invoke<any>("check_docker");
         setPhase("deps");
         setDockerInfo(d);
@@ -115,17 +110,9 @@ export default function Detect() {
               href="https://www.docker.com/products/docker-desktop/"
               target="_blank"
               rel="noreferrer noopener"
-              onClick={async (e) => {
+              onClick={(e) => {
                 e.preventDefault();
-                const href = "https://www.docker.com/products/docker-desktop/";
-                if (envIsTauriPromise.current) {
-                  try {
-                    const m = await import("@tauri-apps/plugin-shell");
-                    await m.open(href);
-                    return;
-                  } catch {}
-                }
-                window.open(href, "_blank");
+                window.open("https://www.docker.com/products/docker-desktop/", "_blank", "noopener,noreferrer");
               }}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-rose-700/40 bg-rose-500/15 text-rose-800 dark:text-rose-300 text-[10.5px] font-bold hover:bg-rose-500/20 transition shadow-sm"
             >

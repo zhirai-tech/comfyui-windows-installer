@@ -3,6 +3,8 @@ import { isTauri } from "../lib/env";
 import { useInstallerStore } from "../store/installerStore";
 import { reportIssue } from "../lib/telemetry";
 import { translate, useI18n } from "../lib/i18n";
+import { listen } from "../lib/sse";
+import { invoke } from "../lib/rpc";
 import type { RepairReport, RepairStep } from "../store/types";
 
 export function useEnvironmentRepair() {
@@ -17,9 +19,7 @@ export function useEnvironmentRepair() {
     let disposed = false;
     (async () => {
       try {
-        const { listen } = await import("@tauri-apps/api/event");
-        unlisten = await listen("repair_progress", (e: any) => {
-          const step = e.payload as RepairStep;
+        unlisten = listen("repair_progress", (step: RepairStep) => {
           if (!step || typeof step.key !== "string") return;
           if (disposed) return;
           setSteps((prev) => {
@@ -57,7 +57,6 @@ export function useEnvironmentRepair() {
     }
 
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const res: any = await invoke("repair_environment", {
         installDir,
         installMode,

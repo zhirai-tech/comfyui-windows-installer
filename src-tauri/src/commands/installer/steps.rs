@@ -2,14 +2,10 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
-use tauri::Emitter;
-
 use super::pytorch::run_pytorch_step;
 use super::{stream_command_output, SilentCommand};
 
-#[tauri::command]
 pub async fn run_install_step(
-    app: tauri::AppHandle,
     step: String,
     install_dir: String,
     python_exe: String,
@@ -17,9 +13,8 @@ pub async fn run_install_step(
     versions_config: serde_json::Value,
     gpu_info: serde_json::Value,
 ) -> Result<(), String> {
-    let app_clone = app.clone();
     let emit = move |tag: &str, msg: &str| {
-        let _ = app_clone.emit("install_log", format!("[{}] {}", tag, msg));
+        crate::events::log(tag, msg);
     };
 
     match step.as_str() {

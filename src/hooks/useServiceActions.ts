@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useInstallerStore } from "../store/installerStore";
+import { invoke } from "../lib/rpc";
 import { useT } from "../lib/i18n";
 
 export function useServiceActions(installDir: string, installMode: string) {
@@ -18,7 +19,6 @@ export function useServiceActions(installDir: string, installMode: string) {
     setServiceBusy(true);
     setServiceStatus({ status: "starting", last_error: undefined });
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const res: any = await invoke("start_service", { installDir, installMode });
       appendLog(t("service.log.start", { res: JSON.stringify(res) }));
       setServiceStatus(res);
@@ -39,7 +39,6 @@ export function useServiceActions(installDir: string, installMode: string) {
     setServiceBusy(true);
     setServiceStatus({ status: "restarting", last_error: undefined });
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const res: any = await invoke("restart_service", { installDir, installMode });
       appendLog(t("service.log.restart"));
       setServiceStatus(res);
@@ -60,7 +59,6 @@ export function useServiceActions(installDir: string, installMode: string) {
     setServiceBusy(true);
     setServiceStatus({ status: "stopping" });
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const res: any = await invoke("stop_service", { installDir, installMode });
       appendLog(t("service.log.stop"));
       setServiceStatus(res);
@@ -80,7 +78,6 @@ export function useServiceActions(installDir: string, installMode: string) {
     setHeaderBusy(true);
     setServiceBusy(true);
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const res: any = await invoke("uninstall_service", { installDir, installMode, keepModels });
       appendLog(`[service] ${String(res ?? t("service.log.uninstallDone"))}`);
       resetInstallState();

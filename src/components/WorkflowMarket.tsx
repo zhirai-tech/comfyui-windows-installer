@@ -4,11 +4,13 @@ import {
   Download,
   ExternalLink,
   Loader2,
+  Plus,
   RotateCcw,
   ScanLine,
   Sparkles,
   Stethoscope,
   Trash2,
+  Users,
   Workflow,
   Wrench,
 } from "lucide-react";
@@ -16,10 +18,16 @@ import { useInstallerStore } from "../store/installerStore";
 import { PRESET_WORKFLOWS, PresetWorkflow, WorkflowDependency } from "../lib/presetWorkflows";
 import { PRESET_MODELS, PresetModel } from "../lib/presetModels";
 import { isTauri } from "../lib/env";
+import { invoke } from "../lib/rpc";
 import { reportContentEvent } from "../lib/telemetry";
 import { formatBytes } from "../lib/utils";
+import { openExternal } from "../lib/window";
 import { lookupGpu } from "../lib/gpuDatabase";
-import { useT, useLocalize } from "../lib/i18n";
+import { useT, useLocalize, useI18n } from "../lib/i18n";
+import { fetchResources, fetchBlueprints, uploadWorkflowThumbnail, type ResourceItem } from "../lib/resources";
+import type { BlueprintInfo } from "../store/types";
+import { useMarketInstall } from "../hooks/useMarketInstall";
+import { ThumbCard } from "./ThumbCard";
 
 // 去掉扩展名后做小写归一化，用于模型文件名比对
 function normName(n: string) {
@@ -37,16 +45,23 @@ function nodeMatches(nodeName: string, depName: string) {
   return nodeName.toLowerCase() === depName.toLowerCase();
 }
 
-type SectionKey = "official" | "zhirai" | "diagnosis";
+type SectionKey = "all" | "zhirai" | "community" | "official";
 
 const SECTIONS: { key: SectionKey; labelKey: string }[] = [
-  { key: "official", labelKey: "wf.section.official" },
+  { key: "all", labelKey: "wf.section.all" },
   { key: "zhirai", labelKey: "wf.section.zhirai" },
-  { key: "diagnosis", labelKey: "wf.section.diagnosis" },
+  { key: "community", labelKey: "wf.section.community" },
+  { key: "official", labelKey: "wf.section.official" },
 ];
 
 function TagPill({ text, cls }: { text: string; cls: string }) {
   return <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold leading-none ${cls}`}>{text}</span>;
+}
+
+function formatCount(n: number) {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
 }
 
 export function WorkflowMarket({
@@ -72,7 +87,8 @@ export function WorkflowMarket({
   const manifestContent = useInstallerStore((s) => s.manifestContent);
   const installTranslateNode = useInstallerStore((s) => s.installTranslateNode);
   const gpuInfo = useInstallerStore((s) => s.gpuInfo);
-  const setGpuInfo = useInstallerStore((s) => s.setGpuInfo);
+  const executorOnline = useInstallerStore((s) => s.executorOnline);
+  const checkExecutor = useInstallerStore((s) => s.checkExecutor);
 
   const blueprints = useInstallerStore((s) => s.blueprints);
   const blueprintsScanning = useInstallerStore((s) => s.blueprintsScanning);
@@ -84,13 +100,18 @@ export function WorkflowMarket({
 
   const t = useT();
   const L = useLocalize();
+  const lang = useI18n((s) => s.lang);
+
+  const mk = useMarketInstall();
 
   const presetWorkflows = manifestContent?.workflows?.length
     ? manifestContent.workflows
     : PRESET_WORKFLOWS;
   const presetModels = manifestContent?.models?.length ? manifestContent.models : PRESET_MODELS;
 
-  const [section, setSection] = useState<SectionKey>("official");
+  const [section, setSection] = useState<SectionKey>("all");
+  const [category, setCategory] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [deletingName, setDeletingName] = useState<string | null>(null);
   const [fixingId, setFixingId] = useState<string | null>(null);
@@ -99,6 +120,42 @@ export function WorkflowMarket({
   const [needRestart, setNeedRestart] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<string | null>(null);
 
+  // 自己平台工作流封面的本地覆盖（上传后即时回显，避免等待重新拉取 manifest）
+  const [wfThumbOverrides, setWfThumbOverrides] = useState<Record<string, string>>({});
+
+  const [community, setCommunity] = useState<ResourceItem[]>([]);
+  const [communityLoading, setCommunityLoading] = useState(true);
+
+  const [remoteBlueprints, setRemoteBlueprints] = useState<BlueprintInfo[]>([]);
+  const [remoteBlueprintsLoading, setRemoteBlueprintsLoading] = useState(true);
+
+  // 拉取社区工作流（后端缓存，来自 Civitai）
+  useEffect(() => {
+    let alive = true;
+    setCommunityLoading(true);
+    fetchResources("workflow", 0, 200).then((page) => {
+      if (!alive) return;
+      setCommunity(page.items);
+      setCommunityLoading(false);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // 官方模板统一从后端 /api/blueprints（GitHub）拉取展示。
+  useEffect(() => {
+    let alive = true;
+    fetchBlueprints().then((list) => {
+      if (!alive) return;
+      setRemoteBlueprints(list);
+      setRemoteBlueprintsLoading(false);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // 待下载模型文件名的集合，全部下载完成后触发“需重启”提示
   const pendingDownloadsRef = useRef<Set<string>>(new Set());
   const onRestartRef = useRef(onRestart);
@@ -106,22 +163,7 @@ export function WorkflowMarket({
   const tRef = useRef(t);
   tRef.current = t;
 
-  // 进入工作流中心时刷新一次本地资源 + 读取官方模板，确保依赖状态是最新的
-  useEffect(() => {
-    void runScanResources();
-    void scanBlueprints();
-    // GPU 显存是标注“能否运行”的依据，缺失时补一次检测
-    if (!gpuInfo && isTauri()) {
-      (async () => {
-        try {
-          const { invoke } = await import("@tauri-apps/api/core");
-          const g: any = await invoke("detect_gpu");
-          if (g?.gpu_name || g?.has_nvidia !== undefined) setGpuInfo(g);
-        } catch {}
-      })();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 纯 Web：不自动扫描本地资源/检测 GPU；仅当本地执行器在线时按需（点「安装/修复/刷新」）触发。
 
   // 监听模型下载：本次修复批次的所有下载完成后，提示重启并弹出确认框
   useEffect(() => {
@@ -191,7 +233,6 @@ export function WorkflowMarket({
     if (fixable.length === 0 && nodesToFix.length === 0 && !needNodePack) return false;
 
     if (nodesToFix.length > 0) {
-      const { invoke } = await import("@tauri-apps/api/core");
       for (const d of nodesToFix) {
         const r: string = await invoke("install_custom_node", {
           installDir,
@@ -277,7 +318,6 @@ export function WorkflowMarket({
         return;
       }
       if (dep.kind === "node" && dep.git_url) {
-        const { invoke } = await import("@tauri-apps/api/core");
         const r: string = await invoke("install_custom_node", {
           installDir,
           nodeName: dep.name,
@@ -308,7 +348,6 @@ export function WorkflowMarket({
     setDeletingName(fileName);
     setMsg(null);
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       await invoke("delete_workflow", { installDir, fileName });
       appendLog(t("wf.logDeleted", { name: fileName }));
       await runScanResources();
@@ -325,11 +364,16 @@ export function WorkflowMarket({
     setInstallingId(p.id);
     setMsg(null);
     try {
-      if (!isTauri() || !installDir) {
+      if (!installDir) {
         setMsg(t("wf.needTauri"));
         return;
       }
-      const { invoke } = await import("@tauri-apps/api/core");
+      // 纯 Web：安装需本地执行器，先确认在线，离线则提示。
+      const online = await checkExecutor();
+      if (!online) {
+        setMsg(t("wf.needExecutor"));
+        return;
+      }
       const content = JSON.stringify(p.graph, null, 2);
       await invoke("install_preset_workflow", {
         installDir,
@@ -386,20 +430,30 @@ export function WorkflowMarket({
     const manual = manualDeps(p);
     const canFix = fixableMissing(p).length > 0 || fixableNodes(p).length > 0 || nodePackMissing(p);
     const isFixing = fixing(p);
-    const gpuDb = lookupGpu(gpuInfo?.gpu_name);
-    const vramGb = gpuInfo?.vram_gb ?? gpuDb?.vramGb ?? 0;
-    const gpuLabel = gpuDb?.name ?? gpuInfo?.gpu_name?.trim() ?? "GPU";
+    // 纯 Web：无本地执行器时不做任何依赖/显存检测，只展示内容与「安装」入口。
+    const canDetect = executorOnline;
+    const gpuDb = canDetect ? lookupGpu(gpuInfo?.gpu_name) : undefined;
+    const vramGb = canDetect ? gpuInfo?.vram_gb ?? gpuDb?.vramGb ?? 0 : 0;
+    const gpuLabel = canDetect ? gpuDb?.name ?? gpuInfo?.gpu_name?.trim() ?? "GPU" : "GPU";
     const minVram = p.minVramGb;
-    const cannotRun = minVram != null && vramGb > 0 && vramGb < minVram;
+    const cannotRun = canDetect && minVram != null && vramGb > 0 && vramGb < minVram;
+    const thumb = wfThumbOverrides[p.id] ?? p.thumbnail ?? null;
     return (
       <div
         key={p.id}
-        className="rounded-xl border dark:border-slate-800 border-slate-200 dark:bg-slate-950/40 bg-slate-50/80 px-3.5 py-3 flex flex-col gap-1.5"
+        className="rounded-xl border dark:border-slate-800 border-slate-200 dark:bg-slate-950/40 bg-slate-50/80 overflow-hidden flex flex-col"
       >
-        <div className="flex items-start justify-between gap-3">
+        <ThumbCard
+          id={p.id}
+          thumbnail={thumb}
+          acceptVideo
+          upload={uploadWorkflowThumbnail}
+          onUploaded={(url) => setWfThumbOverrides((prev) => ({ ...prev, [p.id]: url }))}
+        />
+        <div className="px-3 py-2.5 flex-1 flex flex-col gap-1.5">
+        <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <Workflow className="w-4 h-4 text-brand-600 dark:text-brand-300 flex-shrink-0" />
               <span className="text-[12.5px] font-semibold dark:text-slate-100 text-slate-800">
                 {L(p.name)}
               </span>
@@ -412,7 +466,7 @@ export function WorkflowMarket({
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {canFix && (
+            {canDetect && canFix && (
               <button
                 onClick={() => fixMissing(p)}
                 disabled={isFixing}
@@ -431,41 +485,28 @@ export function WorkflowMarket({
               {installingId === p.id ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <Download className="w-3.5 h-3.5" />
+                <Plus className="w-3.5 h-3.5" />
               )}
               {installingId === p.id ? t("wf.installing") : done ? t("wf.installed") : t("wf.install")}
             </button>
           </div>
         </div>
-        {missing.length > 0 && (
+        {canDetect && missing.length > 0 && (
           <div className="text-[11px] text-red-500 dark:text-red-400 font-medium">
             <div>{t("wf.missing")}</div>
             <div className="space-y-1 mt-0.5">
-              {missing.map((d) => {
-                const depFixable = d.kind === "model" || (d.kind === "node" && !!d.git_url);
-                const depKey = `${p.id}::${d.name}`;
-                const fixingDep = fixingDepKey === depKey;
-                return (
-                  <div key={d.name} className="flex items-center justify-between gap-2">
-                    <span className="min-w-0 break-all">{L(d.label)}</span>
-                    {depFixable && (
-                      <button
-                        onClick={() => fixDependency(p, d)}
-                        disabled={fixingDep}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/90 hover:bg-red-400 text-white text-[10.5px] font-bold transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                        title={t("wf.fix")}
-                      >
-                        {fixingDep ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wrench className="w-3 h-3" />}
-                        {fixingDep ? t("wf.fixing") : t("wf.fix")}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+              {missing.map((d) => (
+                <div key={d.name} className="flex items-center gap-1.5">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-red-500/10 dark:bg-red-500/20 text-[10px] font-bold flex-shrink-0">
+                    {d.kind === "node" ? t("wf.dep.node") : t("wf.dep.model")}
+                  </span>
+                  <span className="min-w-0 break-all">{L(d.label)}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
-        {manual.length > 0 && (
+        {canDetect && manual.length > 0 && (
           <div className="text-[11px] text-amber-500 dark:text-amber-400">
             {t("wf.manual")}{manual.map((d) => L(d.label)).join("、")}
           </div>
@@ -477,15 +518,17 @@ export function WorkflowMarket({
               : t("wf.cannotRunMsgNoHint", { min: minVram, gpu: gpuLabel, vram: vramGb })}
           </div>
         )}
-        {fixableMissing(p).map((m) => renderDownloadProgress(m.fileName))}
+        {canDetect && fixableMissing(p).map((m) => renderDownloadProgress(m.fileName))}
+        </div>
       </div>
     );
   };
 
-  const blueprintModelMissing = (name: string) => !models.some((m) => modelMatches(m.name, name));
-
   const renderOfficial = () => {
-    if (blueprintsScanning) {
+    // 网页端市场：官方模板统一从后端 /api/blueprints（GitHub）拉取展示。
+    const officialBlueprints = remoteBlueprints;
+    const officialLoading = remoteBlueprintsLoading;
+    if (officialLoading) {
       return (
         <div className="text-[12px] dark:text-slate-400 text-slate-500 py-6 text-center flex items-center justify-center gap-2">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -493,7 +536,7 @@ export function WorkflowMarket({
         </div>
       );
     }
-    if (blueprints.length === 0) {
+    if (officialBlueprints.length === 0) {
       return (
         <div className="text-[12px] dark:text-slate-400 text-slate-500 py-6 text-center">
           {t("wf.official.noBlueprints")}
@@ -502,102 +545,59 @@ export function WorkflowMarket({
     }
     return (
       <div className="space-y-2">
-        {blueprints.map((bp) => (
-          <div
-            key={bp.file}
-            className="rounded-xl border dark:border-slate-800 border-slate-200 dark:bg-slate-950/40 bg-slate-50/80 px-3.5 py-3"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <BookOpen className="w-4 h-4 text-sky-500 dark:text-sky-400 flex-shrink-0" />
-                  <span className="text-[12.5px] font-semibold dark:text-slate-100 text-slate-800">
-                    {bp.title || bp.file}
+        {officialBlueprints.map((bp) => {
+          const title = bp.title || bp.file;
+          const bpid = `blueprint:${bp.file}`;
+          return (
+            <div
+              key={bp.file}
+              className="flex items-center gap-3 rounded-xl border dark:border-slate-800 border-slate-200 dark:bg-slate-950/40 bg-slate-50/80 px-3.5 py-2.5"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[12.5px] font-semibold dark:text-slate-100 text-slate-800 truncate" title={title}>
+                    {title}
                   </span>
+                  {bp.category && (
+                    <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold leading-none bg-slate-200/70 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
+                      {bp.category}
+                    </span>
+                  )}
                 </div>
-                {bp.category && (
-                  <div className="mt-0.5 text-[10.5px] text-slate-500 dark:text-slate-500 truncate">
-                    {bp.category}
-                  </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {bp.download_url && (
+                  <button
+                    onClick={() => mk.download({ id: bpid, type: "workflow", name: title, externalUrl: bp.download_url ?? null })}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/90 hover:bg-emerald-400 text-white text-[11px] font-bold transition"
+                    title={t("mk.download")}
+                  >
+                    <Download className="w-3 h-3" />
+                    {t("mk.download")}
+                  </button>
                 )}
+                <button
+                  onClick={() =>
+                    mk.install({ id: bpid, type: "workflow", name: title, externalUrl: bp.download_url ?? null })
+                  }
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-500 hover:bg-brand-400 text-white text-[11px] font-bold transition"
+                >
+                  <Plus className="w-3 h-3" />
+                  {t("mk.install")}
+                </button>
               </div>
             </div>
-
-            {bp.models.length > 0 && (
-              <div className="mt-2">
-                <div className="text-[10.5px] font-bold uppercase tracking-wide dark:text-slate-500 text-slate-500 mb-1">
-                  {t("wf.official.models")}
-                </div>
-                <div className="space-y-1">
-                  {bp.models.map((bm, i) => {
-                    const missing = blueprintModelMissing(bm.name);
-                    const dl = modelDownloads[bm.name];
-                    return (
-                      <div key={`${bm.name}-${i}`} className="flex items-center justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[11.5px] dark:text-slate-300 text-slate-700 break-all">
-                            {bm.name}
-                          </div>
-                          {bm.directory && (
-                            <div className="text-[10px] text-slate-500 dark:text-slate-500">{bm.directory}</div>
-                          )}
-                          {dl?.status === "downloading" && renderDownloadProgress(bm.name)}
-                        </div>
-                        {missing && bm.url && bm.directory && (
-                          <button
-                            onClick={() => downloadModel(bm.directory, bm.name, bm.url)}
-                            disabled={dl?.status === "downloading"}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/90 hover:bg-red-400 text-white text-[10.5px] font-bold transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                            title={t("model.download")}
-                          >
-                            {dl?.status === "downloading" ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Download className="w-3 h-3" />
-                            )}
-                            {dl?.status === "downloading" ? t("wf.fixing") : t("model.download")}
-                          </button>
-                        )}
-                        {!missing && (
-                          <span className="text-[10.5px] text-emerald-500 dark:text-emerald-400 flex-shrink-0">
-                            {t("wf.diag.ok")}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {bp.node_types.length > 0 && (
-              <div className="mt-2">
-                <div className="text-[10.5px] font-bold uppercase tracking-wide dark:text-slate-500 text-slate-500 mb-1">
-                  {t("wf.official.nodes")} ({bp.node_types.length})
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {bp.node_types.map((n) => (
-                    <span
-                      key={n}
-                      className="px-1.5 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800 text-[10px] text-slate-600 dark:text-slate-300"
-                    >
-                      {n}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
 
   const renderZhirai = () => (
-    <div className="space-y-1.5">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       {presetWorkflows.map(renderZhiraiCard)}
       {presetWorkflows.length === 0 && (
-        <div className="text-[12px] dark:text-slate-400 text-slate-500 py-6 text-center">
+        <div className="col-span-full text-[12px] dark:text-slate-400 text-slate-500 py-6 text-center">
           {t("wf.zhirai.empty")}
         </div>
       )}
@@ -817,7 +817,8 @@ export function WorkflowMarket({
   const sectionDesc = useMemo(() => {
     if (section === "official") return t("wf.official.desc");
     if (section === "zhirai") return t("wf.zhirai.desc");
-    return t("wf.diag.desc");
+    if (section === "community") return t("wf.community.desc");
+    return t("wf.all.desc");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section]);
 
@@ -827,7 +828,12 @@ export function WorkflowMarket({
         <div className="text-[13px] font-semibold dark:text-slate-100 text-slate-900">{t("wf.center")}</div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
+            onClick={async () => {
+              const online = await checkExecutor();
+              if (!online) {
+                setMsg(t("wf.needExecutor"));
+                return;
+              }
               void runScanResources();
               void scanBlueprints();
             }}
@@ -877,7 +883,7 @@ export function WorkflowMarket({
         </div>
       )}
 
-      {section === "official" && (
+      {(section === "all" || section === "official") && (
         <>
           <div className="flex items-center gap-1.5 mb-2">
             <BookOpen className="w-3.5 h-3.5 text-sky-500" />
@@ -889,7 +895,7 @@ export function WorkflowMarket({
         </>
       )}
 
-      {section === "zhirai" && (
+      {(section === "all" || section === "zhirai") && (
         <>
           <div className="flex items-center gap-1.5 mb-2">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
@@ -901,15 +907,99 @@ export function WorkflowMarket({
         </>
       )}
 
-      {section === "diagnosis" && (
+      {(section === "all" || section === "community") && (
         <>
           <div className="flex items-center gap-1.5 mb-2">
-            <Stethoscope className="w-3.5 h-3.5 text-emerald-500" />
+            <Users className="w-3.5 h-3.5 text-emerald-500" />
             <div className="text-[11px] font-bold tracking-wide uppercase dark:text-slate-500 text-slate-600">
-              {t("wf.diag.title")}
+              {t("wf.community.title")}
             </div>
           </div>
-          {renderDiagnosis()}
+          {communityLoading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-[12px] dark:text-slate-400 text-slate-500">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {t("res.loading")}
+            </div>
+          ) : community.length === 0 ? (
+            <div className="py-10 text-center text-[12px] dark:text-slate-500 text-slate-500">{t("res.empty")}</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {community.map((r) => {
+                const m = r.metrics;
+                const name = lang === "zh" && r.nameZh ? r.nameZh : r.name;
+                const desc = lang === "zh" && r.descriptionZh ? r.descriptionZh : r.description;
+                return (
+                  <div
+                    key={r.id}
+                    className="rounded-xl border dark:border-slate-800 border-slate-200 dark:bg-slate-950/40 bg-slate-50/80 overflow-hidden flex flex-col"
+                  >
+                    <ThumbCard
+                      id={r.id}
+                      thumbnail={r.thumbnail}
+                      onUploaded={(url) =>
+                        setCommunity((prev) => prev.map((x) => (x.id === r.id ? { ...x, thumbnail: url } : x)))
+                      }
+                    />
+                    <div className="px-3 py-2.5 flex-1 flex flex-col gap-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <span
+                          className="text-[12.5px] font-semibold dark:text-slate-100 text-slate-800 truncate"
+                          title={name}
+                        >
+                          {name}
+                        </span>
+                        {r.externalUrl && (
+                          <button
+                            onClick={() => openExternal(r.externalUrl!)}
+                            title={t("res.viewSource")}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-full border dark:border-slate-700 border-slate-300 dark:text-slate-300 text-slate-600 hover:text-brand-500 dark:hover:text-brand-300 transition flex-shrink-0"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      <span className="self-start px-1.5 py-0.5 rounded text-[9.5px] font-bold leading-none bg-slate-200/70 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                        {t(`res.source.${r.source}`)}
+                      </span>
+                      {desc && (
+                        <div className="text-[11.5px] leading-relaxed dark:text-slate-400 text-slate-600 line-clamp-2">
+                          {desc}
+                        </div>
+                      )}
+                      <div className="mt-auto pt-1.5 flex items-center gap-2.5 text-[10.5px] dark:text-slate-500 text-slate-500 flex-wrap">
+                        {r.author && <span className="truncate max-w-[120px]">{r.author}</span>}
+                        <span className="inline-flex items-center gap-1">
+                          <Download className="w-3 h-3" />
+                          {formatCount(m.downloads ?? 0)} {t("res.downloads")}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          {formatCount(m.likes ?? 0)} {t("res.likes")}
+                        </span>
+                      </div>
+                      <div className="mt-auto pt-1.5 flex items-center gap-1.5">
+                        <button
+                          onClick={() => mk.download({ id: r.id, type: "workflow", name: r.name, description: r.description, externalUrl: r.externalUrl })}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/90 hover:bg-emerald-400 text-white text-[11px] font-bold transition"
+                        >
+                          <Download className="w-3 h-3" />
+                          {t("mk.download")}
+                        </button>
+                        <button
+                          onClick={() => mk.install({ id: r.id, type: "workflow", name: r.name, description: r.description, externalUrl: r.externalUrl })}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-500 hover:bg-brand-400 text-white text-[11px] font-bold transition"
+                        >
+                          <Plus className="w-3 h-3" />
+                          {t("mk.install")}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

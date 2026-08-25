@@ -1,23 +1,18 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-use tauri::Emitter;
-
 use super::{
     cleanup_install_markers, config_port, force_remove_dir_all, probe, read_runtime,
     ServiceStatus, SilentCommand, HOST_CHILD,
 };
 use super::start::start_service;
 
-#[tauri::command]
 pub async fn stop_service(
-    app: tauri::AppHandle,
     install_dir: String,
     install_mode: String,
 ) -> Result<ServiceStatus, String> {
-    let app_emit = app.clone();
     let emit = move |m: &str| {
-        let _ = app_emit.emit("install_log", format!("[service] {}", m));
+        crate::events::log("service", m);
     };
     let port = config_port(&install_dir);
 
@@ -86,31 +81,26 @@ pub async fn stop_service(
     })
 }
 
-#[tauri::command]
 pub async fn restart_service(
-    app: tauri::AppHandle,
     install_dir: String,
     install_mode: String,
 ) -> Result<ServiceStatus, String> {
-    let _ = stop_service(app.clone(), install_dir.clone(), install_mode.clone()).await;
+    let _ = stop_service(install_dir.clone(), install_mode.clone()).await;
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-    start_service(app, install_dir, install_mode).await
+    start_service(install_dir, install_mode).await
 }
 
-#[tauri::command]
 pub async fn uninstall_service(
-    app: tauri::AppHandle,
     install_dir: String,
     install_mode: String,
     keep_models: bool,
 ) -> Result<String, String> {
-    let app_emit = app.clone();
     let emit = move |m: &str| {
-        let _ = app_emit.emit("install_log", format!("[service] {}", m));
+        crate::events::log("service", m);
     };
 
     emit("开始卸载 ComfyUI...");
-    let _ = stop_service(app.clone(), install_dir.clone(), install_mode.clone()).await;
+    let _ = stop_service(install_dir.clone(), install_mode.clone()).await;
     cleanup_install_markers(&install_dir);
 
     let target = PathBuf::from(&install_dir);
