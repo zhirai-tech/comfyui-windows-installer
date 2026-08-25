@@ -72,12 +72,43 @@ export interface ManifestContent {
 
 const MANIFEST_TIMEOUT_MS = 6000;
 const PLACEHOLDER_MARK = "your-cdn.example.com";
+const MANIFEST_URL_STORAGE_KEY = "zhirai.manifestUrl";
 
-function localManifestUrl(): string | null {
+/** 内嵌默认的 manifest 地址（写死在 versions.json 里，随 exe 分发） */
+function defaultManifestUrl(): string | null {
   const url = (localVersions as any).manifest_url;
   if (typeof url !== "string" || !url) return null;
   if (url.includes(PLACEHOLDER_MARK)) return null;
   return url;
+}
+
+/** 当前生效的 manifest 地址：用户本地覆盖优先，否则回退内嵌默认 */
+export function getManifestUrl(): string | null {
+  try {
+    const override = localStorage.getItem(MANIFEST_URL_STORAGE_KEY);
+    if (override !== null) {
+      const trimmed = override.trim();
+      if (trimmed) return trimmed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return defaultManifestUrl();
+}
+
+/** 设置 manifest 地址；传空串表示清除覆盖、恢复默认 */
+export function setManifestUrl(url: string): void {
+  try {
+    const trimmed = url.trim();
+    if (trimmed) localStorage.setItem(MANIFEST_URL_STORAGE_KEY, trimmed);
+    else localStorage.removeItem(MANIFEST_URL_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function localManifestUrl(): string | null {
+  return getManifestUrl();
 }
 
 /** 从 manifest_url 推导上报接口的 base（origin），失败返回空串 */

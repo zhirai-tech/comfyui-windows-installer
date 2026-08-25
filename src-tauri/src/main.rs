@@ -5,13 +5,19 @@ mod commands;
 mod events;
 
 use std::net::SocketAddr;
-use std::path::PathBuf;
 
+use axum::http::{header, StatusCode, Uri};
+use axum::response::{IntoResponse, Response};
 use axum::Router;
+use rust_embed::RustEmbed;
 use tower_http::cors::CorsLayer;
-use tower_http::services::{ServeDir, ServeFile};
 
 const PORT: u16 = 16789;
+
+/// 前端构建产物（release-repo/dist）随二进制一起编译，实现单文件 exe。
+#[derive(RustEmbed)]
+#[folder = "../dist"]
+struct Assets;
 
 #[tokio::main]
 async fn main() {
@@ -36,39 +42,35 @@ async fn main() {
     }
 }
 
-/// 静态资源目录：优先 exe 同级 dist，其次 cwd/dist，再其次 ../dist（cargo run 场景）。
-fn static_dir() -> PathBuf {
-    let candidate = |d: PathBuf| {
-        if d.join("index.html").exists() {
-            Some(d)
-        } else {
-            None
-        }
-    };
+fn embedded_file(path: &str) -> Response {
+    if let Some(content) = Assets::get(path) {
+        let mime = mime_guess::from_path(path).first_or_octet_stream();
+        return (
+            [(header::CONTENT_TYPE, mime.as_ref().to_owned())],
+            content.data.into_owned(),
+        )
+            .into_response();
+    }
+    // SPA 回退：未知路由交给前端路由处理
+    if let Some(index) = Assets::get("index.html") {
+        return (
+            [
+                (header::CONTENT_TYPE, "text/html; charset=utf-8".to_owned()),
+            ],
+            index.data.into_owned(),
+        )
+            .into_response();
+    }
+    (StatusCode::NOT_FOUND, "404 Not Found").into_response()
+}
 
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(parent) = exe.parent() {
-            if let Some(d) = candidate(parent.join("dist")) {
-                return d;
-            }
-        }
-    }
-    if let Ok(cwd) = std::env::current_dir() {
-        if let Some(d) = candidate(cwd.join("dist")) {
-            return d;
-        }
-        if let Some(d) = candidate(cwd.join("..").join("dist")) {
-            return d;
-        }
-    }
-    PathBuf::from("dist")
+async fn static_handler(uri: Uri) -> Response {
+    let path = uri.path().trim_start_matches('/');
+    embedded_file(if path.is_empty() { "index.html" } else { path })
 }
 
 fn static_files() -> Router {
-    let dir = static_dir();
-    let index = dir.join("index.html");
-    let serve = ServeDir::new(dir).fallback(ServeFile::new(index));
-    Router::new().fallback_service(serve)
+    Router::new().fallback(static_handler)
 }
 
 fn open_browser() {

@@ -1,6 +1,6 @@
 [package]
 name = "comfyui-installer"
-version = "1.1.0"
+version = "1.2.0"
 description = "ComfyUI Local Executor"
 authors = ["zhirai-tech"]
 edition = "2021"
@@ -17,3 +17,5 @@ anyhow = "1"
 thiserror = "1"
 regex = "1"
 sysinfo = "0.30"
+rust-embed = "8"
+mime_guess = "2"

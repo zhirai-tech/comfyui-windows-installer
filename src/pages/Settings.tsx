@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ContactModal } from "../components/ContactModal";
 import { CONTACT_CHANNELS } from "../lib/contact";
 import { useT } from "../lib/i18n";
+import { getManifestUrl, setManifestUrl } from "../lib/manifest";
 
 const BRAND = {
   name: "ComfyUI Installer",
@@ -17,6 +18,19 @@ export default function Settings() {
   const versionsConfig = useInstallerStore((s) => s.versionsConfig);
   const remoteContact = useInstallerStore((s) => s.manifestContent?.contact);
   const [contactOpen, setContactOpen] = useState(false);
+  const [manifestUrl, setManifestUrlInput] = useState(() => getManifestUrl() ?? "");
+  const [manifestSaved, setManifestSaved] = useState(false);
+
+  const saveManifestUrl = () => {
+    setManifestUrl(manifestUrl);
+    setManifestSaved(true);
+    setTimeout(() => setManifestSaved(false), 2000);
+  };
+
+  const resetManifestUrl = () => {
+    setManifestUrl("");
+    setManifestUrlInput(getManifestUrl() ?? "");
+  };
 
   const channels = remoteContact?.length ? remoteContact : CONTACT_CHANNELS;
   const primary = channels[0];
@@ -47,6 +61,37 @@ export default function Settings() {
         <pre className="log-box max-h-80 overflow-auto rounded-xl dark:bg-black/50 bg-slate-100 p-4 text-[11px] dark:text-slate-300 text-slate-700 border dark:border-slate-800 border-slate-200">
 {JSON.stringify(versionsConfig ?? { [t("settings.notLoaded")]: true }, null, 2)}
         </pre>
+      </div>
+
+      <div className="rounded-2xl border dark:border-slate-800 border-slate-300 dark:bg-slate-900/60 bg-white/95 p-5 space-y-3">
+        <div>
+          <div className="text-sm font-semibold dark:text-slate-100 text-slate-900 mb-1">
+            {t("settings.manifestUrl")}
+          </div>
+          <div className="text-xs dark:text-slate-400 text-slate-600 leading-relaxed">
+            {t("settings.manifestUrlDesc")}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            value={manifestUrl}
+            onChange={(e) => setManifestUrlInput(e.target.value)}
+            placeholder="https://zhirai.cloud/api/manifest"
+            className="flex-1 rounded-lg border dark:border-slate-700 border-slate-300 dark:bg-slate-800/60 bg-white px-3 py-2 text-sm dark:text-slate-100 text-slate-900 outline-none focus:border-brand-500"
+          />
+          <button
+            onClick={saveManifestUrl}
+            className="px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm transition"
+          >
+            {manifestSaved ? "✓" : t("settings.manifestUrlSave")}
+          </button>
+          <button
+            onClick={resetManifestUrl}
+            className="px-3 py-2 rounded-lg border dark:border-slate-700 border-slate-300 dark:text-slate-300 text-slate-700 text-sm transition hover:border-slate-500"
+          >
+            {t("settings.manifestUrlReset")}
+          </button>
+        </div>
       </div>
 
       <div className="rounded-2xl border dark:border-slate-800 border-slate-300 dark:bg-slate-900/60 bg-white/95 p-5 space-y-3 text-sm dark:text-slate-300 text-slate-700 leading-relaxed">

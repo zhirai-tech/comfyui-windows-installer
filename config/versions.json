@@ -1,7 +1,7 @@
 {
   "$schema": "./versions.schema.json",
   "_comment": "基础配置：版本号、下载地址、python/comfyui/pytorch/pip。manifest_url 指向后端服务；留空时客户端使用本地内置资源（不请求远程）。",
-  "manifest_url": "http://localhost:8787/api/manifest",
+  "manifest_url": "https://zhirai.cloud/api/manifest",
   "installer_latest_version": "1.0.0",
   "installer_downloads": [
     {
