@@ -6,7 +6,12 @@
 
 ---
 
-# ComfyUI 安装助手
+# ZHIRAI ComfyUI Installer / ComfyUI 安装助手
+
+> **English** | [简体中文](#简体中文)
+>
+> A Windows UI for ComfyUI setup: environment detection, Python/PyTorch installation, configuration, repair and version management.
+
 
 ## Screenshots / 截图
 
