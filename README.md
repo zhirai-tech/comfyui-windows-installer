@@ -8,6 +8,15 @@
 
 # ComfyUI 安装助手
 
+## Screenshots / 截图
+
+![Installer welcome](screenshots/welcome.png)
+![Environment detection](screenshots/env-detect.png)
+![Models and nodes](screenshots/models-nodes.png)
+
+*ComfyUI installer welcome, environment detection and model/node configuration screens. / ComfyUI 安装助手欢迎页、环境检测和模型/节点配置页。*
+
+
 面向 Windows 的 ComfyUI 安装与配置界面：环境检测、Python/PyTorch 安装、模型与节点配置、修复和版本管理。
 
 ## 项目状态
