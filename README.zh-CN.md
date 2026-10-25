@@ -1,4 +1,4 @@
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) | [简体中文](README.zh-CN.md) | [个人网站](https://zhinian-ai.com)
 
 ---
 
@@ -51,3 +51,9 @@ npm run build
 - 仅面向 Windows。
 - 实际安装行为依赖目标机器环境和外部下载源。
 - 本项目不包含 ComfyUI 本体。
+
+---
+
+## 个人网站
+
+**ZHIRAI / 智睿科技** — [zhinian-ai.com](https://zhinian-ai.com)
