@@ -1,62 +1,25 @@
-> **简体中文 | English**
->
-> ComfyUI 安装助手：Windows 环境检测、Python/PyTorch 安装、模型与节点配置、修复与版本管理界面。
->
-> **ComfyUI Installer Helper**: a Windows UI for environment detection, Python/PyTorch setup, model/node configuration, repair and version management.
+[English](README.md) | [简体中文](README.zh-CN.md)
 
----
+# ZHIRAI ComfyUI Installer
 
-# ZHIRAI ComfyUI Installer / ComfyUI 安装助手
+A Windows UI for ComfyUI setup and maintenance.
 
-> **English** | [简体中文](#简体中文)
->
-> A Windows UI for ComfyUI setup: environment detection, Python/PyTorch installation, configuration, repair and version management.
-
-
-## Screenshots / 截图
-
+## Screenshots
 ![Installer welcome](screenshots/welcome.png)
 ![Environment detection](screenshots/env-detect.png)
 ![Models and nodes](screenshots/models-nodes.png)
 
-*ComfyUI installer welcome, environment detection and model/node configuration screens. / ComfyUI 安装助手欢迎页、环境检测和模型/节点配置页。*
+## Features
+- Environment detection
+- Python and PyTorch installation
+- Model and node configuration
+- Repair and version management
 
-
-面向 Windows 的 ComfyUI 安装与配置界面：环境检测、Python/PyTorch 安装、模型与节点配置、修复和版本管理。
-
-## 项目状态
-
-`IN_DEVELOPMENT` — 仓库包含前端源码与 PowerShell 安装脚本，Release 提供可执行分发。
-
-## 技术栈
-
-- React 18 + TypeScript + Vite
-- Tailwind CSS
-- PowerShell 安装/修复脚本
-- Tauri/安装器分发（以 Release 实际产物为准）
-
-## 本地开发
-
+## Development
 ```bash
 npm install
 npm run dev
 ```
 
-构建：
-
-```bash
-npm run build
-```
-
-## 目录
-
-- `src/`：React UI。
-- `scripts/`：环境安装、Python/PyTorch、修复脚本。
-- `config/versions.json`：版本配置。
-- `public/`：图标与静态资源。
-
-## 限制
-
-- 仅面向 Windows。
-- 实际安装行为依赖目标机器环境和外部下载源。
-- 本项目不包含 ComfyUI 本体。
+## License
+MIT License; retain LICENSE and NOTICE. Third-party components remain under their own licenses.
