@@ -1,3 +1,11 @@
+> **简体中文 | English**
+>
+> ComfyUI 安装助手：Windows 环境检测、Python/PyTorch 安装、模型与节点配置、修复与版本管理界面。
+>
+> **ComfyUI Installer Helper**: a Windows UI for environment detection, Python/PyTorch setup, model/node configuration, repair and version management.
+
+---
+
 # ComfyUI 安装助手
 
 面向 Windows 的 ComfyUI 安装与配置界面：环境检测、Python/PyTorch 安装、模型与节点配置、修复和版本管理。
