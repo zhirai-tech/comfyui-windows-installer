@@ -2,7 +2,7 @@
 
 ---
 
-# ComfyUI 安装助手
+# ComfyUI Windows 安装器
 
 ## Screenshots / 截图
 
