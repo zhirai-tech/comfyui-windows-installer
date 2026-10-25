@@ -1,6 +1,6 @@
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-# ZHIRAI ComfyUI Installer
+# ComfyUI Windows Installer
 
 A Windows UI for ComfyUI setup and maintenance.
 
